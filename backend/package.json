@@ -4,9 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "ingest": "tsx src/scripts/ingestJobs.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "cleanup": "tsx src/scripts/cleanupJobs.ts"
   },
   "keywords": [],
   "author": "",

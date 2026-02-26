@@ -1,0 +1,17 @@
+export const JOB_CATEGORIES = [
+  { query: "Information Technology", category: "General Tech" },
+  { query: "Software Development", category: "Engineering" },
+  { query: "Data Science & Analytics", category: "Data" },
+  { query: "Cybersecurity", category: "Security" },
+  { query: "Cloud Infrastructure", category: "DevOps" },
+  { query: "Product Management", category: "Product" },
+  { query: "UXUI Design", category: "Design" },
+  { query: "accountant", category: "finance" },
+  { query: "teacher", category: "education" },
+  { query: "nurse", category: "healthcare" },
+  { query: "medical assistant", category: "healthcare" },
+  { query: "financial analyst", category: "finance" },
+  { query: "marketing manager", category: "marketing" },
+  { query: "sales associate", category: "sales" },
+  { query: "mechanical engineer", category: "engineering" },
+];
