@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,14 @@ interface ResumeUploadProps {
 const ResumeUpload = ({ onUpload, isProcessing }: ResumeUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [wasProcessing, setWasProcessing] = useState(false);
+
+  useEffect(() => {
+    if (wasProcessing && !isProcessing) {
+      setFile(null); 
+    }
+    setWasProcessing(isProcessing);
+  }, [isProcessing, wasProcessing]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();

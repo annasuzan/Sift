@@ -4,10 +4,12 @@ import fs from "fs/promises";
 import path from "path";
 import { pool } from "../db";
 import dotenv from "dotenv";
-import { JOB_CATEGORIES } from "./jobCategories";
 
 dotenv.config();
 
+/**
+ * Generates embeddings using BGE-Base-v1.5 (768 dimensions)
+ */
 async function generateEmbedding(text: string): Promise<number[]> {
   const modelId = "BAAI/bge-base-en-v1.5";
   const hfToken = process.env.HF_TOKEN;
@@ -32,268 +34,121 @@ async function generateEmbedding(text: string): Promise<number[]> {
 
   const result = JSON.parse(resultText);
 
-  // Flatten if nested
+  // Handle various HF response formats
   if (Array.isArray(result) && Array.isArray(result[0])) return result[0];
   return result;
 }
 
 async function ingestJobs() {
-  console.log("Starting job ingestion from backup JSON files...");
-  const backupFolder = path.join(__dirname, "../../backups");
+  console.log("Starting LinkedIn job ingestion from jobDump.json...");
+  
+  // Pointing directly to your jobDump.json file
+  const filePath = path.join(__dirname, "../../backups/jobDump.json");
 
-//   const backupFolder = path.join(__dirname, "backup");
+  try {
+    const fileData = await fs.readFile(filePath, "utf-8");
+    const items = JSON.parse(fileData);
 
-  for (const config of JOB_CATEGORIES) {
-    try {
-      const fileName = `${config.query.replace(/\s+/g, "_").toLowerCase()}.json`;
-      const filePath = path.join(backupFolder, fileName);
-      const fileData = await fs.readFile(filePath, "utf-8");
-      const items = JSON.parse(fileData);
+    console.log(`Found ${items.length} jobs to process.`);
 
-      console.log(`Processing ${items.length} jobs from ${filePath}`);
-
-      for (const job of items) {
-        try {
-            const indeedId = job.id || job.jobId || job.externalId;
-            if (!indeedId) {
-                console.warn("Skipping job: No ID found");
-                continue;
-            }
-
-            //  Check if job already exists
-            const existing = await pool.query(
-            "SELECT 1 FROM jobs WHERE id = $1 LIMIT 1",
-            [indeedId]
-            );
-
-            if (existing.rowCount && existing.rowCount > 0) {
-                console.log(`Skipping existing job: ${indeedId}`);
-                continue; //Skip embedding + insert
-            }
-
-          const title = job.positionName || "Unknown Title";
-          const company = job.company || "Unknown Company";
-          const description = job.description || "";
-          const location = job.location || "Remote";
-
-          // NEW COLUMNS MAPPING
-          const jobType = job.jobType || "Not Specified";
-          const salary = job.salary || "Not Disclosed";
-          const postedDate = job.postingDateParsed || new Date().toISOString();
-          const cleanUrl = job.url || "";
-
-          if (description.length < 200) continue;
-
-          const text = `Title: ${title}\nCompany: ${company}\nLocation: ${location}\nType: ${jobType}\nDescription: ${description}`;
-          console.log(`Processing: ${title} at ${company}`);
-
-          const embedding = await generateEmbedding(text);
-
-          // Flatten & stringify for pg-vector
-          const flatEmbedding = Array.isArray(embedding[0]) ? embedding[0] : embedding;
-          const vectorString = JSON.stringify(flatEmbedding);
-
-          await pool.query(
-            `INSERT INTO jobs (
-              id, title, company, location, job_type, salary, 
-              posted_date, description, embedding, source_url, category
-            )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-            ON CONFLICT (id)
-            DO UPDATE SET
-              last_seen_at = NOW(),
-              title = EXCLUDED.title,
-              description = EXCLUDED.description,
-              embedding = EXCLUDED.embedding,
-              posted_date = EXCLUDED.posted_date`,
-            [
-              indeedId,
-              title,
-              company,
-              location,
-              jobType,
-              salary,
-              postedDate,
-              description,
-              vectorString,
-              cleanUrl,
-              config.category,
-            ]
-          );
-
-          console.log("Success:", title);
-        } catch (err) {
-          console.error("Failed to process job:", job.positionName || job.title, err);
+    for (const job of items) {
+      try {
+        const jobId = job.id;
+        if (!jobId) {
+          console.warn("Skipping job: No ID found in JSON object.");
+          continue;
         }
+
+        // 1. Check if job already exists in the new linkedin_jobs table
+        const existing = await pool.query(
+          "SELECT 1 FROM linkedin_jobs WHERE id = $1 LIMIT 1",
+          [jobId]
+        );
+
+        if (existing.rowCount && existing.rowCount > 0) {
+          console.log(`Skipping existing job: ${jobId}`);
+          continue; 
+        }
+
+        // 2. Map JSON keys to variables
+        const title = job.title || "Unknown Title";
+        const companyName = job.companyName || "Unknown Company";
+        const description = job.descriptionText || "";
+        const seniorityLevel = job.seniorityLevel || "";
+
+        // Skip if description is too short for meaningful embedding
+        if (description.length < 200) continue;
+
+        console.log(`Processing: ${title} at ${companyName}`);
+
+        // 3. Create searchable text for the embedding
+        // We include title, company, and location for better semantic match
+        const textToEmbed = `Title: ${title}\nCompany: ${companyName}\nLocation: ${job.Location}\nDescription: ${description}\nSeniority Level: ${seniorityLevel}`;
+        const embedding = await generateEmbedding(textToEmbed);
+
+        // Ensure embedding is a flat JSON string for pgvector
+        const vectorString = JSON.stringify(embedding);
+
+        const url = job.applyUrl || job.link || "";
+
+        const country = job.companyAddress?.addressCountry || "";
+
+        // 4. Insert into linkedin_jobs table
+        await pool.query(
+          `INSERT INTO linkedin_jobs (
+            id, 
+            title, 
+            company_name, 
+            company_employees_count,
+            location, 
+            posted_at, 
+            description_text, 
+            applicants_count, 
+            apply_url, 
+            seniority_level, 
+            employment_type, 
+            industries, 
+            job_function, 
+            country,
+            embedding
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          ON CONFLICT (id)
+          DO UPDATE SET
+            last_seen_at = NOW(),
+            title = EXCLUDED.title,
+            description_text = EXCLUDED.description_text,
+            embedding = EXCLUDED.embedding`,
+          [
+            jobId,                          // $1
+            title,                          // $2
+            companyName,                    // $3
+            job.companyEmployeesCount,      // $4
+            job.location,                   // $5
+            job.postedAt || new Date(),     // $6
+            description,                    // $7
+            job.applicantsCount || 0,       // $8
+            url,                            // $9
+            job.seniorityLevel,             // $10
+            job.employmentType,             // $11
+            job.industries,                 // $12
+            job.jobFunction,  //$13
+            country,   // $14
+            vectorString                    // $15
+          ]
+        );
+
+        console.log(`Success: ${title}`);
+      } catch (err) {
+        console.error(`Failed to process job ID ${job.id}:`, err);
       }
-    } catch (outerErr) {
-      console.error("Failed category:", config.query, outerErr);
     }
+  } catch (outerErr) {
+    console.error("Critical error reading jobDump.json:", outerErr);
   }
 
-  console.log("Ingestion finished");
+  console.log("🏁 Ingestion finished.");
   process.exit(0);
 }
 
 ingestJobs();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// // backend/src/scripts/ingestJobs.ts
-
-// import { ApifyClient } from "apify-client";
-// import { pool } from "../db";
-// import dotenv from "dotenv";
-// import { JOB_CATEGORIES } from "./jobCategories";
-
-// dotenv.config();
-
-// const apify = new ApifyClient({
-//   token: process.env.APIFY_TOKEN!,
-// });
-
-// async function generateEmbedding(text: string): Promise<number[]> {
-//   const modelId = "BAAI/bge-base-en-v1.5";
-//   const hfToken = process.env.HF_TOKEN;
-
-//   const response = await fetch(
-//     `https://router.huggingface.co/hf-inference/models/${modelId}`,
-//     {
-//       method: "POST",
-//       headers: {
-//         Authorization: `Bearer ${hfToken}`,
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify({
-//         inputs: text.slice(0, 5000),
-//         options: { wait_for_model: true }
-//       }),
-//     }
-//   );
-
-//   const resultText = await response.text();
-//   if (!response.ok) throw new Error(`Hugging Face API Error: ${resultText}`);
-
-//   const result = JSON.parse(resultText);
-//   return (Array.isArray(result) && Array.isArray(result[0])) ? result[0] : result;
-// }
-
-// async function ingestJobs() {
-//   console.log("Starting job ingestion with new columns...");
-
-//   for (const config of JOB_CATEGORIES) {
-//     try {
-//         console.log("Fetching:", config.query);
-//         const run = await apify.actor("misceres/indeed-scraper").call({
-//             position: config.query,
-//             maxItemsPerSearch: 10,
-//             country: "US",
-//         });
-        
-//         const { items } = await apify.dataset(run.defaultDatasetId).listItems();
-
-//         const backupPath = path.join(__dirname, `backup_${config.category}.json`);
-//         await fs.writeFile(backupPath, JSON.stringify(items, null, 2));
-//         console.log(`Saved backup to ${backupPath}`);
-        
-//         for (const job of items) {
-//             try {
-//                 const indeedId = job.id || (job as any).jobId || (job as any).externalId;
-                
-//                 if (!indeedId) {
-//                     console.warn("Skipping job: No ID found");
-//                     continue;
-//                 }
-
-//                 const title = job.positionName || "Unknown Title";
-//                 const company = job.company || "Unknown Company";
-//                 const description = job.description || "";
-//                 const location = job.location || "Remote";
-                
-//                 // NEW COLUMNS MAPPING
-//                 const jobType = (job as any).employmentType || "Not Specified";
-//                 const salary = (job as any).salary || "Not Disclosed";
-//                 const postedDate = (job as any).postingDateParsed || new Date().toISOString(); 
-//                 const cleanUrl = job.url ? job.url : "";
-
-//                 if (description.length < 200) continue;
-                
-//                 const text = `Title: ${title}\nCompany: ${company}\nLocation: ${location}\nType: ${jobType}\nDescription: ${description}`;
-//                 console.log(`Processing: ${title} at ${company}`);
-
-//                 const embedding = await generateEmbedding(text);
-//                 const vectorString = JSON.stringify(embedding);
-
-//                 await pool.query(
-//                     `INSERT INTO jobs (
-//                         id, title, company, location, job_type, salary, 
-//                         posted_date, description, embedding, source_url, category
-//                     )
-//                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-//                     ON CONFLICT (id) 
-//                     DO UPDATE SET
-//                         last_seen_at = NOW(),
-//                         title = EXCLUDED.title,
-//                         description = EXCLUDED.description,
-//                         embedding = EXCLUDED.embedding,
-//                         posted_date = EXCLUDED.posted_date`,
-//                     [
-//                         indeedId, 
-//                         title, 
-//                         company, 
-//                         location, 
-//                         jobType, 
-//                         salary,
-//                         postedDate, 
-//                         description, 
-//                         vectorString, 
-//                         cleanUrl, 
-//                         config.category
-//                     ]
-//                 );
-                
-//                 console.log("Success:", title);
-//             } catch (err) {
-//                 console.error("Failed to process job:", (job as any).positionName, err);
-//             }
-//         }
-//     } catch (outerErr) {
-//         console.error("Failed category:", config.query, outerErr);
-//     }
-//   }
-
-//   console.log("Ingestion finished");
-//   process.exit(0);
-// }
-
-// ingestJobs();

@@ -11,7 +11,6 @@ if (!process.env.DATABASE_URL) {
 import { pool } from "./db";
 import jobsRoutes from "./routes/jobs";
 
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -22,44 +21,49 @@ app.get("/health", (_, res) => {
   res.json({ status: "ok" });
 });
 
-app.use("/jobs", jobsRoutes);
+app.use("/api/jobs", jobsRoutes);
 
 async function initializeDatabase() {
-  // 1. Enable pgvector
-  await pool.query(`CREATE EXTENSION IF NOT EXISTS vector;`);
-  
-  // 2. Enable pgcrypto (for gen_random_uuid support if needed on older PG versions)
-  await pool.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
+  try {
+    // 1. Enable pgvector extension
+    await pool.query(`CREATE EXTENSION IF NOT EXISTS vector;`);
+    
+    // 2. Create Table - Optimized for LinkedIn Data
+    // Note: 'embedding' is vector(768) to match BGE-Base-v1.5
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS linkedin_jobs (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        company_name TEXT NOT NULL,
+        company_employees_count TEXT, 
+        location TEXT,
+        posted_at TIMESTAMPTZ,
+        description_text TEXT NOT NULL,
+        applicants_count INT,
+        apply_url TEXT,
+        seniority_level TEXT,
+        employment_type TEXT,
+        industries TEXT,
+        job_function TEXT,
+        country TEXT,
+        embedding vector(768) NOT NULL, 
+        last_seen_at TIMESTAMPTZ DEFAULT NOW(),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
 
-  // 3. Create Table - 1024 dimensions for BGE-M3
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS jobs (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      company TEXT NOT NULL,
-      location TEXT,
-      job_type TEXT,
-      salary TEXT,
-      posted_date TIMESTAMPTZ,
-      description TEXT NOT NULL,
-      embedding vector(768) NOT NULL, 
-      source_url TEXT UNIQUE,
-      category TEXT,
-      last_seen_at TIMESTAMP DEFAULT NOW(),
-      first_seen_at TIMESTAMP DEFAULT NOW(),
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `);
+    // 3. Create HNSW Index for high-performance semantic search
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS linkedin_jobs_embedding_hnsw_idx
+      ON linkedin_jobs
+      USING hnsw (embedding vector_cosine_ops);
+    `);
 
-  // 4. Create HNSW Index (Superior to ivfflat for most use cases)
-  // We use vector_cosine_ops because we are matching resumes to jobs
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS jobs_embedding_hnsw_idx
-    ON jobs
-    USING hnsw (embedding vector_cosine_ops);
-  `);
-
-  console.log("Database initialized with 1024-dim vectors and HNSW index.");
+    console.log("Database initialized: linkedin_jobs table ready with company_employees_count.");
+  } catch (err) {
+    console.error("Database initialization failed:", err);
+    throw err;
+  }
 }
 
 async function start() {
