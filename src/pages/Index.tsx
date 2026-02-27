@@ -7,6 +7,7 @@ import JobCard, { Job } from "@/components/JobCard";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
+  const API_URL = import.meta.env.VITE_API_URL;
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +77,7 @@ const Index = () => {
     const fetchAllJobs = async () => {
       setIsProcessing(true);
       try {
-        const response = await fetch(`http://localhost:5000/api/jobs/all?page=${page}`);
+        const response = await fetch(`${API_URL}/api/jobs/all?page=${page}`);
         const newJobs = await response.json();
         
         if (newJobs.length < 20) setHasMore(false);
@@ -132,7 +133,7 @@ const Index = () => {
     const formData = new FormData();
     formData.append("resume", file);
     try {
-      const response = await fetch("http://localhost:5000/api/jobs/match", {
+      const response = await fetch(`${API_URL}/api/jobs/match`, {
         method: "POST",
         body: formData,
       });
@@ -180,7 +181,7 @@ const Index = () => {
     const formData = new FormData();
     formData.append("resume", file);
     try {
-      const response = await fetch("http://localhost:5000/api/jobs/match", {
+      const response = await fetch(`${API_URL}/api/jobs/match`, {
         method: "POST",
         body: formData,
       });
