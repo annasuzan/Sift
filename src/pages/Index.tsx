@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, FileSearch, SlidersHorizontal, X, RotateCcw, Upload, Search, ArrowRight } from "lucide-react";
+import { Sparkles, FileSearch, SlidersHorizontal, X, RotateCcw, Upload, Search, ArrowRight, ArrowUp } from "lucide-react";
 import ResumeUpload from "@/components/ResumeUpload";
 import JobCard, { Job } from "@/components/JobCard";
 import { Button } from "@/components/ui/button";
@@ -596,7 +596,7 @@ const Index = () => {
             onClick={scrollToTop}
             className="fixed bottom-8 right-8 z-[100] p-3 rounded-full bg-primary/10 backdrop-blur-md border border-primary/20 text-primary shadow-xl hover:bg-primary hover:text-primary-foreground transition-all active:scale-90 group"
           >
-            <ArrowRight className="w-6 h-6 -rotate-45 group-hover:rotate-0 transition-transform duration-300" />
+            <ArrowUp className="w-6 h-6 -rotate-45 group-hover:rotate-0 transition-transform duration-300" />
           </motion.button>
         )}
       </AnimatePresence>
