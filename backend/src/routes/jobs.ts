@@ -65,7 +65,7 @@ async function extractResumeDetails(resumeText: string): Promise<ResumeDetails> 
   "summary": <string, 2-3 sentences>
 }
 
-Tier rules: internship=student/no full-time exp, entry=1 to 2 years of exp, mid=3-5 years, senior=5-9 years, lead=9+ years or staff/principal/director/VP title.
+Tier rules: Assign 'internship' for undergraduate students with no full-time experience, 'entry' for those with 1 to 2 years of exp, 'mid' for those with 3-5 years of experience, 'senior' for those with 5-9 years, and 'lead' for 9+ years or staff/principal/director/VP title.
 
 Resume:
 ${resumeText.slice(0, 4000)}`,
