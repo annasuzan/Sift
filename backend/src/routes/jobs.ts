@@ -65,7 +65,6 @@ async function extractResumeDetails(resumeText: string): Promise<ResumeDetails> 
   "skills": <string[] up to 10 most relevant technical skills>,
   "summary": <string, 2-3 sentences capturing level, domain, and key strengths>,
   "jobTitles": <string[], up to 3 typical job titles for this candidate>,
-  "industries": <string[], up to 5 industries this candidate worked in based on his experience or education in the resume. Only pick ones that are relevant and present strongly within the resume>
 }
 
 Tier rules: Assign 'internship' for undergraduate students with no full-time experience, 'entry' for those with 1 to 2 years of exp, 'mid' for those with 3-5 years of experience, 'senior' for those with 5-9 years, and 'lead' for 9+ years or staff/principal/director/VP title.
@@ -121,30 +120,6 @@ function fallbackProfile(): ResumeDetails {
     jobTitles: [],
     industries: [],
   };
-}
-
-async function resolveIndustries(rawIndustries: string[]): Promise<string[]> {
-  if (rawIndustries.length === 0) return [];
-
-  // For each LLM-returned industry, find the closest match in the DB
-  const resolved = new Set<string>();
-
-  for (const industry of rawIndustries) {
-    const result = await pool.query(
-      `SELECT DISTINCT industries,
-              similarity(industries, $1) AS sim
-       FROM linkedin_jobs
-       WHERE industries IS NOT NULL
-         AND similarity(industries, $1) > 0.15
-       ORDER BY sim DESC
-       LIMIT 3`,
-      [industry]
-    );
-
-    result.rows.forEach((row: any) => resolved.add(row.industries));
-  }
-
-  return Array.from(resolved);
 }
 
 
@@ -232,10 +207,6 @@ router.post("/match", upload.single("resume"), async (req, res) => {
 
     console.log("Resume profile:", profile);
 
-    const resolvedIndustries = await resolveIndustries(profile.industries);
-    console.log("LLM industries:", profile.industries);
-    console.log("Resolved industries:", resolvedIndustries);
-
     //Create augmented text for better embedding quality
     const augmentedText = `
     ${profile.summary}
@@ -259,18 +230,10 @@ router.post("/match", upload.single("resume"), async (req, res) => {
     FROM linkedin_jobs
     WHERE 
         (seniority_level = ANY($2::text[]) OR seniority_level IS NULL OR seniority_level = '')
-        AND (
-        $3::text[] = '{}'::text[]
-        OR industries IS NULL
-        OR industries = ''
-        OR EXISTS (
-            SELECT 1 FROM unnest($3::text[]) AS candidate_industry
-            WHERE industries ILIKE '%' || candidate_industry || '%'
-        )
-        )
+        
     ORDER BY embedding <=> $1
     LIMIT 100`,
-    [vectorString, allowedLevels, resolvedIndustries]
+    [vectorString, allowedLevels]
     );
 
 
@@ -293,6 +256,7 @@ router.post("/match", upload.single("resume"), async (req, res) => {
         };
       })
       .sort((a : any, b : any) => b.similarity - a.similarity)
+      .filter((row : any) => row.similarity >= 60)
       .slice(0, 20);
 
     //   console.log("Top matches:", reranked)
