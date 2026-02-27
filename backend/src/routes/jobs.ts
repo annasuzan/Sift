@@ -19,12 +19,13 @@ const upload = multer({
 type SeniorityTier = "internship" | "entry" | "mid" | "senior" | "lead";
 
 // Structure into which resume should be converted into
-interface ResumeDetails{
-    yearsOfExperience: number;
-    tier: SeniorityTier;
-    // targetTiers: SeniorityTier[];
-    skills: string[];
-    summary: string;
+interface ResumeDetails {
+  yearsOfExperience: number;
+  tier: SeniorityTier;
+  skills: string[];
+  summary: string;
+  jobTitles: string[];
+  industries: string[];
 }
 
 const SENIORITY_FILTER: Record<SeniorityTier, string[]> = {
@@ -59,10 +60,12 @@ async function extractResumeDetails(resumeText: string): Promise<ResumeDetails> 
             role: "user",
             content: `Extract from this resume and return ONLY a JSON object with these exact fields:
 {
-  "yearsOfExperience": <number>,
-  "tier": <"internship"|"entry"|"mid"|"senior"|"lead">,
-  "skills": <string[] up to 10>,
-  "summary": <string, 2-3 sentences>
+  "yearsOfExperience": <number, total professional years, 0 if student/intern>,
+  "tier": <one of: "internship", "entry", "mid", "senior", "lead">,
+  "skills": <string[] up to 10 most relevant technical skills>,
+  "summary": <string, 2-3 sentences capturing level, domain, and key strengths>,
+  "jobTitles": <string[], up to 3 typical job titles for this candidate>,
+  "industries": <string[], up to 5 industries this candidate worked in based on his experience or education in the resume. Only pick ones that are relevant and present strongly within the resume>
 }
 
 Tier rules: Assign 'internship' for undergraduate students with no full-time experience, 'entry' for those with 1 to 2 years of exp, 'mid' for those with 3-5 years of experience, 'senior' for those with 5-9 years, and 'lead' for 9+ years or staff/principal/director/VP title.
@@ -115,9 +118,34 @@ function fallbackProfile(): ResumeDetails {
     tier: "entry",
     skills: [],
     summary: "",
+    jobTitles: [],
+    industries: [],
   };
 }
 
+async function resolveIndustries(rawIndustries: string[]): Promise<string[]> {
+  if (rawIndustries.length === 0) return [];
+
+  // For each LLM-returned industry, find the closest match in the DB
+  const resolved = new Set<string>();
+
+  for (const industry of rawIndustries) {
+    const result = await pool.query(
+      `SELECT DISTINCT industries,
+              similarity(industries, $1) AS sim
+       FROM linkedin_jobs
+       WHERE industries IS NOT NULL
+         AND similarity(industries, $1) > 0.15
+       ORDER BY sim DESC
+       LIMIT 3`,
+      [industry]
+    );
+
+    result.rows.forEach((row: any) => resolved.add(row.industries));
+  }
+
+  return Array.from(resolved);
+}
 
 
 async function generateEmbedding(text: string): Promise<number[]> {
@@ -204,12 +232,16 @@ router.post("/match", upload.single("resume"), async (req, res) => {
 
     console.log("Resume profile:", profile);
 
+    const resolvedIndustries = await resolveIndustries(profile.industries);
+    console.log("LLM industries:", profile.industries);
+    console.log("Resolved industries:", resolvedIndustries);
+
     //Create augmented text for better embedding quality
     const augmentedText = `
-      ${profile.summary}
-      Skills: ${profile.skills.join(", ")}
-      Experience: ${profile.yearsOfExperience} years
-      ${resumeText.slice(0, 3000)}
+    ${profile.summary}
+    Job titles: ${profile.jobTitles.join(", ")}
+    Skills: ${profile.skills.join(", ")}
+    Experience: ${profile.yearsOfExperience} years
     `.trim();
 
     // Generate embedding for the augmented text
@@ -218,29 +250,29 @@ router.post("/match", upload.single("resume"), async (req, res) => {
 
     // Query with seniority filter
     const allowedLevels = SENIORITY_FILTER[profile.tier];
-
     const result = await pool.query(
-      `SELECT 
-        id,
-        title,
-        company_name,
-        company_employees_count,
-        description_text,
-        location,
-        apply_url,
-        seniority_level,
-        employment_type,
-        posted_at,
+    `SELECT 
+        id, title, company_name, company_employees_count,
+        description_text, location, apply_url,
+        seniority_level, employment_type, posted_at,
         1 - (embedding <=> $1) AS similarity
-       FROM linkedin_jobs
-       WHERE 
-         seniority_level = ANY($2::text[])  -- enforce seniority band
-         OR seniority_level IS NULL          -- don't drop jobs with missing level data
-         OR seniority_level = ''
-       ORDER BY embedding <=> $1
-       LIMIT 100`,
-      [vectorString, allowedLevels]
+    FROM linkedin_jobs
+    WHERE 
+        (seniority_level = ANY($2::text[]) OR seniority_level IS NULL OR seniority_level = '')
+        AND (
+        $3::text[] = '{}'::text[]
+        OR industries IS NULL
+        OR industries = ''
+        OR EXISTS (
+            SELECT 1 FROM unnest($3::text[]) AS candidate_industry
+            WHERE industries ILIKE '%' || candidate_industry || '%'
+        )
+        )
+    ORDER BY embedding <=> $1
+    LIMIT 100`,
+    [vectorString, allowedLevels, resolvedIndustries]
     );
+
 
     // Consider core level as the middle value of the allowed range, removing the overlap.
     // Provide jobs that have seniority levels the same as the core level with additional boost as they
