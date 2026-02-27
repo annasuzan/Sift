@@ -137,13 +137,15 @@ const Index = () => {
         body: formData,
       });
       if (!response.ok) throw new Error("Failed to match resume");
-      const matches = await response.json();
+      const data = await response.json();
+      const matches = data.matches ?? data;
       setAllJobs(matches);
       setFilteredJobs(matches);
       setHasSearched(true);
     } catch (error) {
       console.error("Upload failed", error);
       setError("Server is offline or could not process resume.");
+      setIsProcessing(false);
     } finally {
       setIsProcessing(false);
     }
@@ -183,7 +185,8 @@ const Index = () => {
         body: formData,
       });
       if (!response.ok) throw new Error("Failed to match resume");
-      const matches = await response.json();
+      const data = await response.json();
+      const matches = data.matches ?? data;
       setAllJobs(matches);
       setFilteredJobs(matches);
       setIsBrowsingAll(false);
@@ -192,6 +195,7 @@ const Index = () => {
       setModalError(null);
     } catch (err) {
       setModalError("Server is offline or could not process resume.");
+      setIsProcessing(false);
     } finally {
       setModalProcessing(false);
     }
