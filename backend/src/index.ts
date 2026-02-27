@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 5000;
 // app.use(cors({ origin: "*" }));
 app.use(cors({
   origin: [
-    "https://sift-9awj.onrender.com",  
+    "https://sift-ecru.vercel.app",  
     "http://localhost:8080",     
   ]
 }));
