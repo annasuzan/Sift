@@ -6,16 +6,20 @@ import { Button } from "@/components/ui/button";
 interface ResumeUploadProps {
   onUpload: (file: File) => void;
   isProcessing: boolean;
+  error?: string | null;
 }
 
-const ResumeUpload = ({ onUpload, isProcessing }: ResumeUploadProps) => {
+const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [wasProcessing, setWasProcessing] = useState(false);
 
   useEffect(() => {
     if (wasProcessing && !isProcessing) {
-      setFile(null); 
+      if (!error) {
+        setFile(null); 
+      }
+      // setFile(null); 
     }
     setWasProcessing(isProcessing);
   }, [isProcessing, wasProcessing]);
@@ -38,14 +42,21 @@ const ResumeUpload = ({ onUpload, isProcessing }: ResumeUploadProps) => {
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile) setFile(selectedFile);
+    if (selectedFile) {
+      setFile(selectedFile);
+      e.target.value = ""; 
+    }
   }, []);
 
   const handleSubmit = () => {
     if (file) onUpload(file);
   };
 
-  const removeFile = () => setFile(null);
+  const removeFile = () => {
+    setFile(null);
+    const input = document.getElementById("file-input") as HTMLInputElement;
+    if (input) input.value = ""; 
+  };
 
   return (
     <motion.div
@@ -122,7 +133,7 @@ const ResumeUpload = ({ onUpload, isProcessing }: ResumeUploadProps) => {
               <div>
                 <p className="font-medium text-foreground">Drop your resume here</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  PDF or DOCX · Max 10MB
+                  PDF · Max 10MB
                 </p>
               </div>
               <Button variant="outline" size="sm" className="mt-1">

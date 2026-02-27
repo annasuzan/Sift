@@ -338,7 +338,7 @@ const Index = () => {
                 <p className="text-lg text-muted-foreground max-w-md mx-auto mb-12">
                   Upload your resume and let AI shortlist the best opportunities for you.
                 </p>
-                <ResumeUpload onUpload={handleUpload} isProcessing={isProcessing} />
+                <ResumeUpload onUpload={handleUpload} isProcessing={isProcessing} error={error} />
                 {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
                 {/* OR / Browse all jobs */}
@@ -464,7 +464,7 @@ const Index = () => {
                 </div>
 
                 {/* Upload component */}
-                <ResumeUpload onUpload={handleUploadFromModal} isProcessing={modalProcessing} />
+                <ResumeUpload onUpload={handleUploadFromModal} isProcessing={modalProcessing} error={modalError} />
 
                 {modalError && (
                   <p className="mt-3 text-sm text-destructive text-center">{modalError}</p>
