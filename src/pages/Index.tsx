@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-// Added ArrowUpRight here
-import { Sparkles, FileSearch, SlidersHorizontal, X, RotateCcw, Upload, ArrowUpRight } from "lucide-react"; 
+import { Sparkles, FileSearch, SlidersHorizontal, X, RotateCcw, Upload, Search } from "lucide-react";
 import ResumeUpload from "@/components/ResumeUpload";
 import JobCard, { Job } from "@/components/JobCard";
 import { Button } from "@/components/ui/button";
@@ -14,10 +13,13 @@ const Index = () => {
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [positionSearch, setPositionSearch] = useState("");
   const [filters, setFilters] = useState({
     location: "",
     seniority: "",
     dateRange: "all",
+    employmentType: "",
+    companySize: "",
   });
 
   const [page, setPage] = useState(1);
@@ -32,32 +34,14 @@ const Index = () => {
     filters.location,
     filters.seniority,
     filters.dateRange !== "all" ? filters.dateRange : "",
+    filters.employmentType,
+    filters.companySize,
   ].filter(Boolean).length;
 
-  const [showBackToTop, setShowBackToTop] = useState(false);
-
-  //Listen for scroll events
-  useEffect(() => {
-    const handleScroll = () => {
-      // Show button after scrolling down 400px
-      if (window.scrollY > 400) {
-        setShowBackToTop(true);
-      } else {
-        setShowBackToTop(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  //Smooth scroll function
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
+  // Derive unique seniority levels from loaded jobs, sorted alphabetically
+  const seniorityOptions = Array.from(
+    new Set(allJobs.map((j) => j.seniority_level).filter(Boolean))
+  ).sort();
 
   const lastJobElementRef = useCallback((node: HTMLDivElement) => {
     if (isProcessing) return;
@@ -71,18 +55,13 @@ const Index = () => {
   }, [isProcessing, hasMore, isBrowsingAll]);
 
   useEffect(() => {
-    // Only fetch if we are in browsing mode and haven't run out of jobs
     if (!isBrowsingAll || !hasMore) return;
-
     const fetchAllJobs = async () => {
       setIsProcessing(true);
       try {
         const response = await fetch(`${API_URL}/api/jobs/all?page=${page}`);
         const newJobs = await response.json();
-        
         if (newJobs.length < 20) setHasMore(false);
-        
-        // Use a functional update to ensure we don't have race conditions
         setAllJobs(prev => page === 1 ? newJobs : [...prev, ...newJobs]);
       } catch (err) {
         setError("Failed to load more jobs.");
@@ -90,20 +69,47 @@ const Index = () => {
         setIsProcessing(false);
       }
     };
-    
     fetchAllJobs();
   }, [page, isBrowsingAll]);
 
   useEffect(() => {
     let result = [...allJobs];
+
+    // Position search
+    if (positionSearch.trim()) {
+      result = result.filter((job) =>
+        job.title.toLowerCase().includes(positionSearch.toLowerCase()) ||
+        job.company_name.toLowerCase().includes(positionSearch.toLowerCase())
+      );
+    }
+    // Location
     if (filters.location) {
       result = result.filter((job) =>
         job.location.toLowerCase().includes(filters.location.toLowerCase())
       );
     }
+    // Seniority
     if (filters.seniority) {
       result = result.filter((job) => job.seniority_level === filters.seniority);
     }
+    // Employment type
+    if (filters.employmentType) {
+      result = result.filter((job) =>
+        job.employment_type?.toLowerCase().includes(filters.employmentType.toLowerCase())
+      );
+    }
+    // Company size
+    if (filters.companySize) {
+      result = result.filter((job) => {
+        const count = parseInt((job.company_employees_count || "0").replace(/\D/g, ""));
+        if (filters.companySize === "small") return count > 0 && count <= 200;
+        if (filters.companySize === "mid") return count > 200 && count <= 1000;
+        if (filters.companySize === "large") return count > 1000 && count <= 10000;
+        if (filters.companySize === "enterprise") return count > 10000;
+        return true;
+      });
+    }
+    // Date
     const now = new Date();
     if (filters.dateRange === "1day") {
       result = result.filter(
@@ -118,8 +124,9 @@ const Index = () => {
         (job) => (now.getTime() - new Date(job.posted_at).getTime()) / (1000 * 3600 * 24) > 2
       );
     }
+
     setFilteredJobs(result);
-  }, [filters, allJobs]);
+  }, [filters, positionSearch, allJobs]);
 
   const handleUpload = async (file: File) => {
     setIsProcessing(true);
@@ -151,7 +158,10 @@ const Index = () => {
     }
   };
 
-  const resetFilters = () => setFilters({ location: "", seniority: "", dateRange: "all" });
+  const resetFilters = () => {
+    setFilters({ location: "", seniority: "", dateRange: "all", employmentType: "", companySize: "" });
+    // setPositionSearch("");
+  };
 
   const handleBrowseAllTrigger = () => {
     setAllJobs([]);
@@ -167,13 +177,12 @@ const Index = () => {
     setIsBrowsingAll(false);
     setAllJobs([]);
     setFilteredJobs([]);
-    setPage(1); // Reset page
-    setHasMore(true); // Reset more status
+    setPage(1);
+    setHasMore(true);
     resetFilters();
     setFiltersOpen(false);
   };
 
-  // Upload from modal — stays on results page, just swaps the job list
   const handleUploadFromModal = async (file: File) => {
     setModalProcessing(true);
     setModalError(null);
@@ -203,7 +212,7 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background relative overflow-x-hidden">
 
-      {/* ── AMBIENT GRADIENT BACKGROUND ── */}
+      {/* ── AMBIENT GRADIENT ── */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute -top-52 -left-52 w-[800px] h-[800px] rounded-full bg-primary/20 blur-[100px]" />
         <div className="absolute -top-32 -right-32 w-[700px] h-[700px] rounded-full bg-primary/15 blur-[100px]" />
@@ -213,13 +222,11 @@ const Index = () => {
       {/* ── NAVBAR ── */}
       <header className="border-b border-border sticky top-0 z-50 bg-background/70 backdrop-blur-md">
         <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 h-16 flex items-center justify-between">
-
-          {/* Wordmark */}
           <button onClick={handleGoHome} className="flex items-center gap-2.5 group">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
               <FileSearch className="w-4 h-4 text-primary-foreground" />
             </div>
-           <div className="relative group flex items-center">
+            <div className="relative group flex items-center">
             <span className="text-2xl font-extrabold tracking-tighter" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Sift
             </span>
@@ -260,17 +267,21 @@ const Index = () => {
             >
               <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-5">
                 <div className="flex flex-wrap gap-4 items-end">
-                  <div className="flex-1 min-w-[180px]">
+
+                  {/* Location */}
+                  <div className="flex-1 min-w-[160px]">
                     <label className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground mb-2 block">Location</label>
                     <input
                       type="text"
-                      placeholder="City, state, or remote…"
+                      placeholder="City or remote…"
                       className="w-full h-10 px-3 rounded-xl border border-border bg-secondary/40 text-sm outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-all placeholder:text-muted-foreground/50"
                       value={filters.location}
                       onChange={(e) => setFilters({ ...filters, location: e.target.value })}
                     />
                   </div>
-                  <div className="min-w-[160px]">
+
+                  {/* Seniority */}
+                  <div className="min-w-[150px]">
                     <label className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground mb-2 block">Seniority</label>
                     <select
                       className="w-full h-10 px-3 rounded-xl border border-border bg-secondary/40 text-sm outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-all appearance-none cursor-pointer"
@@ -278,12 +289,46 @@ const Index = () => {
                       onChange={(e) => setFilters({ ...filters, seniority: e.target.value })}
                     >
                       <option value="">All Levels</option>
-                      <option value="Entry level">Entry Level</option>
-                      <option value="Mid-Senior level">Mid-Senior</option>
-                      <option value="Associate">Associate</option>
+                      {seniorityOptions.map((level) => (
+                        <option key={level} value={level}>{level}</option>
+                      ))}
                     </select>
                   </div>
+
+                  {/* Employment Type */}
                   <div className="min-w-[160px]">
+                    <label className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground mb-2 block">Employment Type</label>
+                    <select
+                      className="w-full h-10 px-3 rounded-xl border border-border bg-secondary/40 text-sm outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-all appearance-none cursor-pointer"
+                      value={filters.employmentType}
+                      onChange={(e) => setFilters({ ...filters, employmentType: e.target.value })}
+                    >
+                      <option value="">Any Type</option>
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Contract">Contract</option>
+                      <option value="Internship">Internship</option>
+                    </select>
+                  </div>
+
+                  {/* Company Size */}
+                  <div className="min-w-[150px]">
+                    <label className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground mb-2 block">Company Size</label>
+                    <select
+                      className="w-full h-10 px-3 rounded-xl border border-border bg-secondary/40 text-sm outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-all appearance-none cursor-pointer"
+                      value={filters.companySize}
+                      onChange={(e) => setFilters({ ...filters, companySize: e.target.value })}
+                    >
+                      <option value="">Any Size</option>
+                      <option value="small">Small (1–200)</option>
+                      <option value="mid">Mid (201–1k)</option>
+                      <option value="large">Large (1k–10k)</option>
+                      <option value="enterprise">Enterprise (10k+)</option>
+                    </select>
+                  </div>
+
+                  {/* Date Posted */}
+                  <div className="min-w-[140px]">
                     <label className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground mb-2 block">Posted</label>
                     <select
                       className="w-full h-10 px-3 rounded-xl border border-border bg-secondary/40 text-sm outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-all appearance-none cursor-pointer"
@@ -296,11 +341,13 @@ const Index = () => {
                       <option value="older">Older</option>
                     </select>
                   </div>
+
+                  {/* Actions */}
                   <div className="flex items-center gap-2 ml-auto">
-                    {activeFilterCount > 0 && (
+                    {(activeFilterCount > 0 || positionSearch) && (
                       <Button variant="ghost" size="sm" onClick={resetFilters} className="gap-1.5 text-muted-foreground h-10">
                         <RotateCcw className="w-3.5 h-3.5" />
-                        Reset
+                        Reset all
                       </Button>
                     )}
                     <Button size="sm" variant="ghost" className="h-10 w-10 p-0" onClick={() => setFiltersOpen(false)}>
@@ -341,7 +388,6 @@ const Index = () => {
                 <ResumeUpload onUpload={handleUpload} isProcessing={isProcessing} error={error} />
                 {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
-                {/* OR / Browse all jobs */}
                 <div className="flex items-center gap-4 max-w-xs mx-auto mt-8">
                   <div className="flex-1 h-px bg-border" />
                   <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">or</span>
@@ -365,19 +411,17 @@ const Index = () => {
               className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-8"
             >
               {/* ── TOP BAR ── */}
-              <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+              <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
                   <h2 className="text-3xl font-bold text-foreground tracking-tight">
                     {isBrowsingAll ? "All Jobs" : "Top Matches"}
                   </h2>
-                  {/* Count pill only for matched results, not browse-all */}
                   {!isBrowsingAll && (
                     <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-sm font-semibold ring-1 ring-primary/30">
                       {filteredJobs.length} jobs
                     </span>
                   )}
                 </div>
-
                 <Button
                   onClick={() => { setUploadModalOpen(true); setModalError(null); }}
                   variant="outline"
@@ -386,6 +430,26 @@ const Index = () => {
                   <Upload className="w-3.5 h-3.5" />
                   Upload new resume
                 </Button>
+              </div>
+
+              {/* ── POSITION SEARCH BAR ── */}
+              <div className="relative mb-6">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by job title or company…"
+                  value={positionSearch}
+                  onChange={(e) => setPositionSearch(e.target.value)}
+                  className="w-full h-11 pl-11 pr-4 rounded-xl border border-border bg-card/60 backdrop-blur-sm text-sm outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-all placeholder:text-muted-foreground/50"
+                />
+                {positionSearch && (
+                  <button
+                    onClick={() => setPositionSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* ── JOB CARDS GRID ── */}
@@ -405,8 +469,8 @@ const Index = () => {
                 </div>
               ) : (
                 <div className="text-center py-24 border-2 border-dashed rounded-2xl border-border">
-                  <p className="text-muted-foreground mb-3">No jobs match your selected filters.</p>
-                  <Button variant="link" onClick={resetFilters}>Reset Filters</Button>
+                  <p className="text-muted-foreground mb-3">No jobs match your current filters.</p>
+                  <Button variant="link" onClick={resetFilters}>Reset all filters</Button>
                 </div>
               )}
 
@@ -424,7 +488,6 @@ const Index = () => {
       <AnimatePresence>
         {uploadModalOpen && (
           <>
-            {/* Backdrop — blurs + darkens the page behind */}
             <motion.div
               key="modal-backdrop"
               initial={{ opacity: 0 }}
@@ -434,8 +497,6 @@ const Index = () => {
               className="fixed inset-0 z-[60] bg-background/60 backdrop-blur-md"
               onClick={() => !modalProcessing && setUploadModalOpen(false)}
             />
-
-            {/* Modal card */}
             <motion.div
               key="modal-card"
               initial={{ opacity: 0, scale: 0.95, y: 16 }}
@@ -445,7 +506,6 @@ const Index = () => {
               className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none"
             >
               <div className="pointer-events-auto w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl shadow-black/20 p-8 relative">
-                {/* Close button */}
                 {!modalProcessing && (
                   <button
                     onClick={() => setUploadModalOpen(false)}
@@ -454,22 +514,12 @@ const Index = () => {
                     <X className="w-4 h-4" />
                   </button>
                 )}
-
-                {/* Heading */}
                 <div className="mb-6">
                   <h3 className="text-xl font-bold text-foreground tracking-tight">Upload your resume</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    We'll find the best matching jobs for your skills.
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">We'll find the best matching jobs for your skills.</p>
                 </div>
-
-                {/* Upload component */}
                 <ResumeUpload onUpload={handleUploadFromModal} isProcessing={modalProcessing} error={modalError} />
-
-                {modalError && (
-                  <p className="mt-3 text-sm text-destructive text-center">{modalError}</p>
-                )}
-                
+                {modalError && <p className="mt-3 text-sm text-destructive text-center">{modalError}</p>}
               </div>
             </motion.div>
           </>
@@ -480,21 +530,6 @@ const Index = () => {
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground mt-auto relative z-10">
         Sift — Find work that fits.
       </footer>
-
-      <AnimatePresence>
-      {showBackToTop && (
-        <motion.button
-          initial={{ opacity: 0, scale: 0.8, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.8, y: 20 }}
-          onClick={scrollToTop}
-          className="fixed bottom-8 right-8 z-[100] p-3 rounded-full bg-primary/10 backdrop-blur-md border border-primary/20 text-primary shadow-xl hover:bg-primary hover:text-primary-foreground transition-all active:scale-90 group"
-        >
-          <ArrowUpRight className="w-6 h-6 -rotate-45 group-hover:rotate-0 transition-transform duration-300" />
-        </motion.button>
-      )}
-    </AnimatePresence>
-    
     </div>
   );
 };
