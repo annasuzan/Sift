@@ -14,7 +14,7 @@ export interface Job {
   employment_type: string;
   posted_at: string;
   similarity: number;
-  description?: string;
+  description_text?: string;
 }
 
 interface JobCardProps {
@@ -189,13 +189,13 @@ const JobCard = ({ job, index }: JobCardProps) => {
 
                 {/* Description */}
                 <div className="px-7 py-6 max-h-[50vh] overflow-y-auto">
-                  {job.description ? (
+                  {job.description_text ? (
                     <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none">
                       <p className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground mb-3">
                         About the role
                       </p>
                       <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">
-                        {job.description}
+                        {job.description_text}
                       </p>
                     </div>
                   ) : (
