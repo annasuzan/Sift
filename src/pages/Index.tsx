@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, FileSearch, SlidersHorizontal, X, RotateCcw, Upload, Search } from "lucide-react";
+import { Sparkles, FileSearch, SlidersHorizontal, X, RotateCcw, Upload, Search, ArrowRight } from "lucide-react";
 import ResumeUpload from "@/components/ResumeUpload";
 import JobCard, { Job } from "@/components/JobCard";
 import { Button } from "@/components/ui/button";
@@ -210,7 +210,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background relative overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-background relative">
 
       {/* ── AMBIENT GRADIENT ── */}
       <div className="pointer-events-none fixed inset-0 z-0">
@@ -388,18 +388,38 @@ const Index = () => {
                 <ResumeUpload onUpload={handleUpload} isProcessing={isProcessing} error={error} />
                 {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
-                <div className="flex items-center gap-4 max-w-xs mx-auto mt-8">
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">or</span>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-                <button
-                  onClick={handleBrowseAllTrigger}
-                  className="mt-4 text-sm text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-muted-foreground/40 hover:decoration-foreground transition-colors"
-                >
-                  Browse all jobs
-                </button>
+              {/* Browse all button */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.5 }}
+                    className="mt-8"
+                  >
+                    <div className="flex items-center gap-4 max-w-xs mx-auto mb-6">
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-xs text-muted-foreground uppercase tracking-widest font-medium">or</span>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+
+                    <motion.button
+                      onClick={handleBrowseAllTrigger}
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="group w-full max-w-sm mx-auto flex items-center justify-center gap-3 px-5 py-4 rounded-2xl border border-primary/20 bg-primary hover:bg-primary/90"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors shrink-0">
+                        <FileSearch className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-semibold text-white">Browse all jobs</p>
+                        <p className="text-xs text-white/70">Explore without uploading</p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-white/70 group-hover:translate-x-1 transition-all shrink-0" />
+                    </motion.button>
+
+                  </motion.div> 
               </section>
+          
             </motion.div>
           ) : (
             /* VIEW 2: RESULTS */
