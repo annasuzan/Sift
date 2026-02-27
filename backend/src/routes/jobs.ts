@@ -9,24 +9,39 @@ dotenv.config();
 
 const router = Router();
 
-// Initialize Multer for memory storage
+// Initializing Multer for memory storage
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-/**
- * Embedding Function
- * Matches ingestJobs.ts (BGE-Base-v1.5 produces 768 dimensions)
- */
-async function generateEmbedding(text: string): Promise<number[]> {
-  const modelId = "BAAI/bge-base-en-v1.5";
-  const hfToken = process.env.HF_TOKEN;
+// Define Seniority Tiers
+type SeniorityTier = "internship" | "entry" | "mid" | "senior" | "lead";
 
-  if (!hfToken) throw new Error("HF_TOKEN is missing from your environment variables");
+// Structure into which resume should be converted into
+interface ResumeDetails{
+    yearsOfExperience: number;
+    tier: SeniorityTier;
+    // targetTiers: SeniorityTier[];
+    skills: string[];
+    summary: string;
+}
+
+const SENIORITY_FILTER: Record<SeniorityTier, string[]> = {
+  internship: ["Internship", "Entry level"],
+  entry:      ["Internship", "Entry level", "Associate"],
+  mid:        ["Entry level", "Associate", "Mid-Senior level"],
+  senior:     ["Mid-Senior level", "Director"],
+  lead:       ["Mid-Senior level", "Director", "Executive"],
+};
+
+
+async function extractResumeDetails(resumeText: string): Promise<ResumeDetails> {
+  const hfToken = process.env.HF_TOKEN;
+  if (!hfToken) throw new Error("HF_TOKEN missing");
 
   const response = await fetch(
-   `https://router.huggingface.co/hf-inference/models/${modelId}`,
+    "https://router.huggingface.co/v1/chat/completions", 
     {
       method: "POST",
       headers: {
@@ -34,26 +49,105 @@ async function generateEmbedding(text: string): Promise<number[]> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        inputs: text.slice(0, 5000), // Respect model context limits
-        options: { wait_for_model: true }
+        model: "meta-llama/Llama-3.1-8B-Instruct:cerebras", 
+        messages: [
+          {
+            role: "system",
+            content: "You are a resume parser. Respond with valid JSON only. No markdown, no extra text, no explanation.",
+          },
+          {
+            role: "user",
+            content: `Extract from this resume and return ONLY a JSON object with these exact fields:
+{
+  "yearsOfExperience": <number>,
+  "tier": <"internship"|"entry"|"mid"|"senior"|"lead">,
+  "skills": <string[] up to 10>,
+  "summary": <string, 2-3 sentences>
+}
+
+Tier rules: internship=student/no full-time exp, entry=1 to 2 years of exp, mid=3-5 years, senior=5-9 years, lead=9+ years or staff/principal/director/VP title.
+
+Resume:
+${resumeText.slice(0, 4000)}`,
+          },
+        ],
+        max_tokens: 512,
+        temperature: 0.1,
       }),
     }
   );
 
   const resultText = await response.text();
-  if (!response.ok) {
-    throw new Error(`Hugging Face API Error: ${resultText}`);
-  }
+  if (!response.ok) throw new Error(`HF API Error: ${resultText}`);
 
   const result = JSON.parse(resultText);
+  // Standard OpenAI-compatible response shape
+  const rawOutput: string = result.choices?.[0]?.message?.content?.trim() ?? "";
 
-  // Handle nested array response format from Hugging Face
-  if (Array.isArray(result) && Array.isArray(result[0])) {
-    return result[0];
+  return parseProfileFromLLMOutput(rawOutput);
+}
+
+function parseProfileFromLLMOutput(rawOutput: string): ResumeDetails {
+  const jsonMatch = rawOutput.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    console.error("No JSON found in LLM output, falling back:", rawOutput);
+    return fallbackProfile();
   }
 
+  let parsed: ResumeDetails;
+  try {
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch {
+    console.error("Failed to parse LLM JSON, falling back:", jsonMatch[0]);
+    return fallbackProfile();
+  }
+
+  const validTiers: SeniorityTier[] = ["internship", "entry", "mid", "senior", "lead"];
+  if (!validTiers.includes(parsed.tier)) parsed.tier = "entry";
+
+  return {
+    ...parsed  };
+}
+
+function fallbackProfile(): ResumeDetails {
+  return {
+    yearsOfExperience: 0,
+    tier: "entry",
+    skills: [],
+    summary: "",
+  };
+}
+
+
+
+async function generateEmbedding(text: string): Promise<number[]> {
+  const modelId = "BAAI/bge-base-en-v1.5";
+  const hfToken = process.env.HF_TOKEN;
+
+  if (!hfToken) throw new Error("HF_TOKEN is missing from your environment variables");
+
+  const response = await fetch(
+    `https://router.huggingface.co/hf-inference/models/${modelId}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${hfToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inputs: text.slice(0, 5000),
+        options: { wait_for_model: true },
+      }),
+    }
+  );
+  const resultText = await response.text();
+  if (!response.ok) throw new Error(`Hugging Face API Error: ${resultText}`);
+
+  const result = JSON.parse(resultText);
+  if (Array.isArray(result) && Array.isArray(result[0])) return result[0];
   return result;
 }
+
 
 function cleanResumeText(text: string): string {
   return text
@@ -86,74 +180,99 @@ function cleanResumeText(text: string): string {
 // Match resume to LinkedIn jobs
 router.post("/match", upload.single("resume"), async (req, res) => {
   try {
-    console.log("Received resume upload request");
-    // 1. Verify file exists
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded. Please upload a PDF resume." });
     }
 
-    // 2. Parse PDF
+    // Parse PDF
     let resumeText = "";
     try {
-        const pdfData = await pdfParse(req.file.buffer);
-        resumeText = cleanResumeText(pdfData.text);
-        // resumeText = pdfData.text;
-
+      const pdfData = await pdfParse(req.file.buffer);
+      resumeText = cleanResumeText(pdfData.text);
+      //resumeText = pdfData.text;
       if (!resumeText || resumeText.trim().length === 0) {
         throw new Error("No extractable text found in PDF");
       }
-
-    //   console.log(`Extracted text successfully: ${resumeText}`);
     } catch (err) {
       console.error("PDF Parsing Error:", err);
       return res.status(500).json({ error: "Failed to parse PDF content." });
     }
 
-    // 3. Generate embedding
-    console.log("Generating embedding for resume...");
-    const embedding = await generateEmbedding(resumeText);
-    const vectorString = JSON.stringify(embedding);
+    // Run LLM extraction 
+    console.log("Running LLM extraction and embedding in parallel...");
+    const profile = await extractResumeDetails(resumeText);
 
-    // console.log("Embedding generated successfully. Length:", embedding.length);
-    // console.log("Sample embedding values:", embedding.slice(0, 5));
-    // console.log("Vector string length:", vectorString.length);
-    // console.log("Vector string sample:", vectorString.slice(0, 100));
-    // if (embedding.length !== 768) {
-    //   console.warn(`Warning: Expected embedding of length 768, got ${embedding.length}`);
-    // }
+    console.log("Resume profile:", profile);
 
-    // 4. Query the linkedin_jobs table with full metadata
+    //Create augmented text for better embedding quality
+    const augmentedText = `
+      ${profile.summary}
+      Skills: ${profile.skills.join(", ")}
+      Experience: ${profile.yearsOfExperience} years
+      ${resumeText.slice(0, 3000)}
+    `.trim();
+
+    // Generate embedding for the augmented text
+    const augmentedEmbedding = await generateEmbedding(augmentedText);
+    const vectorString = JSON.stringify(augmentedEmbedding);
+
+    // Query with seniority filter
+    const allowedLevels = SENIORITY_FILTER[profile.tier];
+
     const result = await pool.query(
       `SELECT 
-        id, 
-        title, 
-        company_name, 
+        id,
+        title,
+        company_name,
         company_employees_count,
         description_text,
-        location, 
-        apply_url, 
+        location,
+        apply_url,
         seniority_level,
         employment_type,
         posted_at,
         1 - (embedding <=> $1) AS similarity
        FROM linkedin_jobs
+       WHERE 
+         seniority_level = ANY($2::text[])  -- enforce seniority band
+         OR seniority_level IS NULL          -- don't drop jobs with missing level data
+         OR seniority_level = ''
        ORDER BY embedding <=> $1
-       LIMIT 20`,
-      [vectorString]
+       LIMIT 100`,
+      [vectorString, allowedLevels]
     );
 
-    // console.log(`Database query completed. Found ${result.rowCount} matches.`);
-    // console.log("Raw query results:", result.rows);
+    // Consider core level as the middle value of the allowed range, removing the overlap.
+    // Provide jobs that have seniority levels the same as the core level with additional boost as they
+    // are probably the best fit.
+    const coreLevels = allowedLevels.slice(1, -1).length > 0
+      ? allowedLevels.slice(1, -1)
+      : allowedLevels;
 
-    // 5. Format results (similarity as 0-100 percentage)
-    const formattedResults = result.rows.map(row => ({
-      ...row,
-      similarity: parseFloat((row.similarity * 100).toFixed(2))
-    }));
+    const reranked = result.rows
+      .map(row => {
+        const isCoreSeniority = coreLevels.includes(row.seniority_level);
+        const boost = isCoreSeniority ? 0.05 : 0;
+        return {
+          ...row,
+          similarity: parseFloat(((row.similarity + boost) * 100).toFixed(2)),
+          _candidateTier: profile.tier,
+          _candidateYears: profile.yearsOfExperience,
+        };
+      })
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 20);
 
-    // console.log("Match results:", formattedResults);
-
-    res.json(formattedResults);
+    //   console.log("Top matches:", reranked)
+    res.json({
+      candidateProfile: {
+        tier: profile.tier,
+        yearsOfExperience: profile.yearsOfExperience,
+        skills: profile.skills,
+        summary: profile.summary,
+      },
+      matches: reranked,
+    });
 
   } catch (err) {
     console.error("Match error:", err);
@@ -164,11 +283,11 @@ router.post("/match", upload.single("resume"), async (req, res) => {
 router.get("/all", async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = 20; // Number of jobs per "chunk"
+    const limit = 20;
     const offset = (page - 1) * limit;
 
     const result = await pool.query(
-      `SELECT id, title, company_name, description_text,location, apply_url, 
+      `SELECT id, title, company_name, description_text, location, apply_url,
               seniority_level, employment_type, posted_at, 0 AS similarity
        FROM linkedin_jobs
        ORDER BY posted_at DESC
@@ -176,13 +295,7 @@ router.get("/all", async (req, res) => {
       [limit, offset]
     );
 
-    // Format the results (similarity will show as 0.00%)
-    const formattedResults = result.rows.map(row => ({
-      ...row,
-      similarity: 0
-    }));
-
-    res.json(formattedResults);
+    res.json(result.rows.map(row => ({ ...row, similarity: 0 })));
   } catch (err) {
     console.error("Error fetching all jobs:", err);
     res.status(500).json({ error: "Failed to fetch all jobs" });
