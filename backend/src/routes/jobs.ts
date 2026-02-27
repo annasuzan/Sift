@@ -250,7 +250,7 @@ router.post("/match", upload.single("resume"), async (req, res) => {
       : allowedLevels;
 
     const reranked = result.rows
-      .map(row => {
+      .map((row: any) => {
         const isCoreSeniority = coreLevels.includes(row.seniority_level);
         const boost = isCoreSeniority ? 0.05 : 0;
         return {
@@ -260,7 +260,7 @@ router.post("/match", upload.single("resume"), async (req, res) => {
           _candidateYears: profile.yearsOfExperience,
         };
       })
-      .sort((a, b) => b.similarity - a.similarity)
+      .sort((a : any, b : any) => b.similarity - a.similarity)
       .slice(0, 20);
 
     //   console.log("Top matches:", reranked)
@@ -295,7 +295,7 @@ router.get("/all", async (req, res) => {
       [limit, offset]
     );
 
-    res.json(result.rows.map(row => ({ ...row, similarity: 0 })));
+    res.json(result.rows.map((row: any) => ({ ...row, similarity: 0 })));
   } catch (err) {
     console.error("Error fetching all jobs:", err);
     res.status(500).json({ error: "Failed to fetch all jobs" });
