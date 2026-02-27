@@ -86,7 +86,7 @@ function cleanResumeText(text: string): string {
 // Match resume to LinkedIn jobs
 router.post("/match", upload.single("resume"), async (req, res) => {
   try {
-    console.log("Received resume upload request12");
+    console.log("Received resume upload request");
     // 1. Verify file exists
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded. Please upload a PDF resume." });
@@ -103,7 +103,7 @@ router.post("/match", upload.single("resume"), async (req, res) => {
         throw new Error("No extractable text found in PDF");
       }
 
-      console.log(`Extracted text successfully: ${resumeText}`);
+    //   console.log(`Extracted text successfully: ${resumeText}`);
     } catch (err) {
       console.error("PDF Parsing Error:", err);
       return res.status(500).json({ error: "Failed to parse PDF content." });
@@ -114,13 +114,13 @@ router.post("/match", upload.single("resume"), async (req, res) => {
     const embedding = await generateEmbedding(resumeText);
     const vectorString = JSON.stringify(embedding);
 
-    console.log("Embedding generated successfully. Length:", embedding.length);
-    console.log("Sample embedding values:", embedding.slice(0, 5));
-    console.log("Vector string length:", vectorString.length);
-    console.log("Vector string sample:", vectorString.slice(0, 100));
-    if (embedding.length !== 768) {
-      console.warn(`Warning: Expected embedding of length 768, got ${embedding.length}`);
-    }
+    // console.log("Embedding generated successfully. Length:", embedding.length);
+    // console.log("Sample embedding values:", embedding.slice(0, 5));
+    // console.log("Vector string length:", vectorString.length);
+    // console.log("Vector string sample:", vectorString.slice(0, 100));
+    // if (embedding.length !== 768) {
+    //   console.warn(`Warning: Expected embedding of length 768, got ${embedding.length}`);
+    // }
 
     // 4. Query the linkedin_jobs table with full metadata
     const result = await pool.query(
@@ -129,6 +129,7 @@ router.post("/match", upload.single("resume"), async (req, res) => {
         title, 
         company_name, 
         company_employees_count,
+        description_text,
         location, 
         apply_url, 
         seniority_level,
@@ -137,12 +138,12 @@ router.post("/match", upload.single("resume"), async (req, res) => {
         1 - (embedding <=> $1) AS similarity
        FROM linkedin_jobs
        ORDER BY embedding <=> $1
-       LIMIT 10`,
+       LIMIT 20`,
       [vectorString]
     );
 
-    console.log(`Database query completed. Found ${result.rowCount} matches.`);
-    console.log("Raw query results:", result.rows);
+    // console.log(`Database query completed. Found ${result.rowCount} matches.`);
+    // console.log("Raw query results:", result.rows);
 
     // 5. Format results (similarity as 0-100 percentage)
     const formattedResults = result.rows.map(row => ({
@@ -150,13 +151,41 @@ router.post("/match", upload.single("resume"), async (req, res) => {
       similarity: parseFloat((row.similarity * 100).toFixed(2))
     }));
 
-    console.log("Match results:", formattedResults);
+    // console.log("Match results:", formattedResults);
 
     res.json(formattedResults);
 
   } catch (err) {
     console.error("Match error:", err);
     res.status(500).json({ error: "An error occurred while matching your resume." });
+  }
+});
+
+router.get("/all", async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 20; // Number of jobs per "chunk"
+    const offset = (page - 1) * limit;
+
+    const result = await pool.query(
+      `SELECT id, title, company_name, description_text,location, apply_url, 
+              seniority_level, employment_type, posted_at, 0 AS similarity
+       FROM linkedin_jobs
+       ORDER BY posted_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    // Format the results (similarity will show as 0.00%)
+    const formattedResults = result.rows.map(row => ({
+      ...row,
+      similarity: 0
+    }));
+
+    res.json(formattedResults);
+  } catch (err) {
+    console.error("Error fetching all jobs:", err);
+    res.status(500).json({ error: "Failed to fetch all jobs" });
   }
 });
 
