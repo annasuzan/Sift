@@ -29,6 +29,8 @@ const Index = () => {
   const [modalError, setModalError] = useState<string | null>(null);
   const [modalProcessing, setModalProcessing] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   const activeFilterCount = [
     filters.location,
@@ -53,6 +55,13 @@ const Index = () => {
     });
     if (node) observer.current.observe(node);
   }, [isProcessing, hasMore, isBrowsingAll]);
+
+  useEffect(() => {
+    const handleScroll = () => setShowBackToTop(window.scrollY > 400);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
 
   useEffect(() => {
     if (!isBrowsingAll || !hasMore) return;
@@ -217,7 +226,8 @@ const Index = () => {
         <div className="absolute -top-52 -left-52 w-[800px] h-[800px] rounded-full bg-primary/20 blur-[100px]" />
         <div className="absolute -top-32 -right-32 w-[700px] h-[700px] rounded-full bg-primary/15 blur-[100px]" />
         <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full bg-primary/18 blur-[110px]" />
-      </div>
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-primary/15 blur-[120px]" />  {/* ← top center blob */}
+      </div>  
 
       {/* ── NAVBAR ── */}
       <header className="border-b border-border sticky top-0 z-50 bg-background/70 backdrop-blur-md">
@@ -377,14 +387,27 @@ const Index = () => {
                   <Sparkles className="w-3.5 h-3.5" />
                   Smart resume analysis
                 </div>
-                <h1 className="text-5xl sm:text-6xl font-bold text-foreground leading-[1.1] tracking-tight mb-5">
+              <motion.h1
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                  className="text-5xl sm:text-6xl font-bold text-foreground leading-[1.1] tracking-tight mb-5"
+                >
                   Find jobs that actually
                   <br />
-                  <span className="text-primary">match your skills</span>
-                </h1>
-                <p className="text-lg text-muted-foreground max-w-md mx-auto mb-12">
+                  <span className="text-primary relative">
+                    match your skills
+                  </span>
+                </motion.h1>
+               
+                <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="text-lg text-muted-foreground max-w-md mx-auto mb-12"
+                >
                   Upload your resume and let AI shortlist the best opportunities for you.
-                </p>
+                </motion.p>
                 <ResumeUpload onUpload={handleUpload} isProcessing={isProcessing} error={error} />
                 {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
@@ -442,14 +465,27 @@ const Index = () => {
                     </span>
                   )}
                 </div>
-                <Button
-                  onClick={() => { setUploadModalOpen(true); setModalError(null); }}
-                  variant="outline"
-                  className="gap-2 rounded-full px-5 h-9 border-border hover:border-primary/60 hover:bg-primary/5 transition-all shrink-0 text-sm"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  Upload new resume
-                </Button>
+
+                <div className="flex items-center gap-3">
+                  {!isBrowsingAll && (
+                    <Button
+                      onClick={handleBrowseAllTrigger}
+                      variant="outline"
+                      className="gap-2 rounded-full px-5 h-9 border-border hover:border-primary/60 hover:bg-primary/5 transition-all shrink-0 text-sm"
+                    >
+                      <FileSearch className="w-3.5 h-3.5" />
+                      Browse all jobs
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => { setUploadModalOpen(true); setModalError(null); }}
+                    variant="outline"
+                    className="gap-2 rounded-full px-5 h-9 border-border hover:border-primary/60 hover:bg-primary/5 transition-all shrink-0 text-sm"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Upload new resume
+                  </Button>
+                </div>
               </div>
 
               {/* ── POSITION SEARCH BAR ── */}
@@ -550,6 +586,20 @@ const Index = () => {
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground mt-auto relative z-10">
         Sift — Find work that fits.
       </footer>
+
+      <AnimatePresence>
+        {showBackToTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            onClick={scrollToTop}
+            className="fixed bottom-8 right-8 z-[100] p-3 rounded-full bg-primary/10 backdrop-blur-md border border-primary/20 text-primary shadow-xl hover:bg-primary hover:text-primary-foreground transition-all active:scale-90 group"
+          >
+            <ArrowRight className="w-6 h-6 -rotate-45 group-hover:rotate-0 transition-transform duration-300" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
