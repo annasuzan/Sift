@@ -14,7 +14,7 @@ export interface Job {
   employment_type: string;
   posted_at: string;
   similarity: number;
-  description_text?: string;
+  description?: string;
 }
 
 interface JobCardProps {
@@ -52,14 +52,11 @@ const JobCard = ({ job, index }: JobCardProps) => {
         className="group relative bg-card border border-border rounded-2xl p-6 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 flex flex-col gap-4 cursor-pointer"
         style={{ perspective: "1000px" }}
       >
-        {/* Top row: title + match badge */}
-        <div className="flex items-start justify-between gap-3">
+        {/* Top row: title only */}
+        <div className="flex items-start gap-3">
           <h3 className="font-semibold text-lg text-foreground leading-snug line-clamp-2 flex-1">
             {job.title}
           </h3>
-          <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${matchColor}`}>
-            {job.similarity}% · {matchLabel}
-          </span>
         </div>
 
         {/* Meta */}
@@ -80,11 +77,18 @@ const JobCard = ({ job, index }: JobCardProps) => {
           </span>
         </div>
 
-        {/* Bottom */}
-        <div className="flex items-center justify-between mt-auto pt-1">
-          <span className="text-xs px-2.5 py-1 rounded-md bg-secondary/70 text-secondary-foreground font-medium">
-            {job.employment_type}
-          </span>
+        {/* Bottom: employment type + match badge (if similarity > 0) + apply */}
+        <div className="flex items-center justify-between mt-auto pt-1 gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs px-2.5 py-1 rounded-md bg-secondary/70 text-secondary-foreground font-medium">
+              {job.employment_type}
+            </span>
+            {job.similarity > 0 && (
+              <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${matchColor}`}>
+                {job.similarity}% · {matchLabel}
+              </span>
+            )}
+          </div>
           <a
             href={job.apply_url}
             target="_blank"
@@ -157,9 +161,11 @@ const JobCard = ({ job, index }: JobCardProps) => {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${matchColor}`}>
-                      {job.similarity}% · {matchLabel}
-                    </span>
+                    {job.similarity > 0 && (
+                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${matchColor}`}>
+                        {job.similarity}% · {matchLabel}
+                      </span>
+                    )}
                     <button
                       onClick={() => setFlipped(false)}
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors ml-1"
@@ -183,13 +189,13 @@ const JobCard = ({ job, index }: JobCardProps) => {
 
                 {/* Description */}
                 <div className="px-7 py-6 max-h-[50vh] overflow-y-auto">
-                  {job.description_text ? (
+                  {job.description ? (
                     <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none">
                       <p className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground mb-3">
                         About the role
                       </p>
                       <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">
-                        {job.description_text}
+                        {job.description}
                       </p>
                     </div>
                   ) : (
