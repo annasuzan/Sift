@@ -146,7 +146,6 @@ const Index = () => {
     } catch (error) {
       console.error("Upload failed", error);
       setError("Server is offline or could not process resume.");
-      setIsProcessing(false);
     } finally {
       setIsProcessing(false);
     }
@@ -196,7 +195,6 @@ const Index = () => {
       setModalError(null);
     } catch (err) {
       setModalError("Server is offline or could not process resume.");
-      setIsProcessing(false);
     } finally {
       setModalProcessing(false);
     }

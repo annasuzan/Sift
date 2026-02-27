@@ -14,7 +14,13 @@ import jobsRoutes from "./routes/jobs";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({ origin: "*" }));
+// app.use(cors({ origin: "*" }));
+app.use(cors({
+  origin: [
+    "https://sift-9awj.onrender.com",  
+    "http://localhost:8080",     
+  ]
+}));
 app.use(express.json());
 
 app.get("/health", (_, res) => {
