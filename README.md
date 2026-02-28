@@ -16,7 +16,8 @@ The image on the left is the UI a user sees if they choose to upload a resume, a
 
 A sequence diagram showing the technical flow when the user uploads a resume.
 
-<img width="8192" height="4615" alt="Job Matching Pipeline with-2026-02-28-165515" src="https://github.com/user-attachments/assets/23ad7512-2d2c-4b32-ab98-3050fdf73f8c" />
+<img width="876" height="533" alt="Screenshot 2026-02-28 at 5 08 08 PM" src="https://github.com/user-attachments/assets/a6ae0978-16c0-45f4-86aa-49b3f0fad62d" />
+
 
 
 ## Frontend
@@ -31,7 +32,7 @@ Built using **Express.js** and **Typescript** and deployed on **Render**. It han
 
 ## LLM Service
 
-`Llama 3.1 8B Instruct` accessed via **HuggingFace** is used for providing LLM services. The extracted resume text is sent to the LLM to identify relevant skills and job titles, assign a seniority tier, and generate a short resume summary in JSON format. This model was chosen as structured data.
+`gemini-2.5-flash-lite`  is used for providing LLM services. The extracted resume text is sent to the LLM to identify relevant skills and job titles, assign a seniority tier, and generate a short resume summary in JSON format. This model was chosen as it performs well for structured data. 
 
 ## Embedding Service
 
