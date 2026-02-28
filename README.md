@@ -16,7 +16,8 @@ The image on the left is the UI a user sees if they choose to upload a resume, a
 
 A sequence diagram showing the technical flow when the user uploads a resume.
 
-<img width="8192" height="4672" alt="Job Matching Pipeline with-2026-02-28-145536" src="https://github.com/user-attachments/assets/f53c9c65-1b5e-49f2-b97e-8be8f9d8e30d" />
+<img width="8192" height="4615" alt="Job Matching Pipeline with-2026-02-28-165515" src="https://github.com/user-attachments/assets/23ad7512-2d2c-4b32-ab98-3050fdf73f8c" />
+
 
 ## Frontend
 
@@ -36,6 +37,8 @@ Built using **Express.js** and **Typescript** and deployed on **Render**. It han
 
 `bge-base-en-v1.5` accessed via **HuggingFace** was used to create 768-dimension vector embedding. While not the top model, it was selected for its strong performance on English retrieval benchmarks and compatibility with HuggingFace’s free inference tier.
 
-## Backend
+## Backend and Data
 
-**PostgreSQL** with the **pgvector extension**, hosted on Neon, stores job details and embeddings. Vector similarity is estimated using the cosine similarity operation (`<=>`). Also a **Hierarchical Navigable Small World** (HNSW) index is created on the embedding to make the search quicker. A seniority filter is added to the query during matching to reduce the search space before similarity ranking.
+Job details was collected from the `curious_coder/linkedin-jobs-scraper` scraper from apify. 
+
+**PostgreSQL** with the **pgvector extension**, hosted on Neon, stores job details and embeddings. Vector similarity is estimated using the cosine similarity operation (`<=>`). Also a **Hierarchical Navigable Small World** (HNSW) index is created on the embedding to make the search quicker. High level filters(such as seniority tiers) are added to the query during matching to reduce the search space before similarity ranking.
