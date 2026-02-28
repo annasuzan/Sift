@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, X, Sparkles } from "lucide-react";
+import { Upload, FileText, X, Sparkles, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ResumeUploadProps {
@@ -12,17 +12,23 @@ interface ResumeUploadProps {
 const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [wasProcessing, setWasProcessing] = useState(false);
 
   useEffect(() => {
     if (wasProcessing && !isProcessing) {
-      if (!error) {
-        setFile(null); 
-      }
-      // setFile(null); 
+      if (!error) setFile(null);
     }
     setWasProcessing(isProcessing);
-  }, [isProcessing, wasProcessing]);
+  }, [isProcessing, wasProcessing, error]);
+
+  // Show backend error inside the component too
+  useEffect(() => {
+    if (error) setLocalError(error);
+  }, [error]);
+
+  const isPdf = (f: File) =>
+    f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -35,17 +41,27 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
     e.stopPropagation();
     setDragActive(false);
     const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile && (droppedFile.type === "application/pdf" || droppedFile.name.endsWith(".docx"))) {
-      setFile(droppedFile);
+    if (!droppedFile) return;
+    if (!isPdf(droppedFile)) {
+      setLocalError("Please upload a resume in PDF format.");
+      setFile(null);
+      return;
     }
+    setLocalError(null);
+    setFile(droppedFile);
   }, []);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      e.target.value = ""; 
+    e.target.value = "";
+    if (!selectedFile) return;
+    if (!isPdf(selectedFile)) {
+      setLocalError("Please upload a resume in PDF format.");
+      setFile(null);
+      return;
     }
+    setLocalError(null);
+    setFile(selectedFile);
   }, []);
 
   const handleSubmit = () => {
@@ -54,9 +70,12 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
 
   const removeFile = () => {
     setFile(null);
+    setLocalError(null);
     const input = document.getElementById("file-input") as HTMLInputElement;
-    if (input) input.value = ""; 
+    if (input) input.value = "";
   };
+
+  const displayError = localError;
 
   return (
     <motion.div
@@ -66,17 +85,17 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
       className="w-full max-w-xl mx-auto"
     >
       <div
-        className={`upload-zone ${dragActive ? "upload-zone-active" : ""}`}
+        className={`upload-zone ${dragActive ? "upload-zone-active" : ""} ${displayError ? "border-destructive/60" : ""}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
-        onClick={() => !file && document.getElementById("file-input")?.click()}
+        onClick={() => !file && !isProcessing && document.getElementById("file-input")?.click()}
       >
         <input
           id="file-input"
           type="file"
-          accept=".pdf,.docx"
+          accept=".pdf"
           onChange={handleFileInput}
           className="hidden"
         />
@@ -105,6 +124,7 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
                   size="sm"
                   onClick={(e) => { e.stopPropagation(); removeFile(); }}
                   className="text-muted-foreground"
+                  disabled={isProcessing}
                 >
                   <X className="w-4 h-4 mr-1" /> Remove
                 </Button>
@@ -127,14 +147,24 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
               exit={{ opacity: 0 }}
               className="flex flex-col items-center gap-4"
             >
-              <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center">
-                <Upload className="w-7 h-7 text-muted-foreground" />
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${displayError ? "bg-destructive/10" : "bg-secondary"}`}>
+                {displayError
+                  ? <AlertCircle className="w-7 h-7 text-destructive" />
+                  : <Upload className="w-7 h-7 text-muted-foreground" />
+                }
               </div>
               <div>
-                <p className="font-medium text-foreground">Drop your resume here</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  PDF · Max 10MB
-                </p>
+                {displayError ? (
+                  <>
+                    <p className="font-medium text-destructive">{displayError}</p>
+                    <p className="text-sm text-muted-foreground mt-1">Click or drag to try again</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium text-foreground">Drop your resume here</p>
+                    <p className="text-sm text-muted-foreground mt-1">PDF · Max 10MB</p>
+                  </>
+                )}
               </div>
               <Button variant="outline" size="sm" className="mt-1">
                 Browse files
