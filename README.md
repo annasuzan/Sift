@@ -38,4 +38,4 @@ Render spins down a Free Web Service if no requests are made to it over a 15-min
 
 ## Backend
 
-**PostgreSQL** with the **pgvector extension**, hosted on Neon, stores job details and embeddings. Vector similarity is estimated using the cosine similarity operation (<=>). Also a **Hierarchical Navigable Small World** (HNSW) index is created on the embedding to make the search quicker. A seniority filter is added to the query during matching to reduce the search space before similarity ranking.
+**PostgreSQL** with the **pgvector extension**, hosted on Neon, stores job details and embeddings. Vector similarity is estimated using the cosine similarity operation (`<=>`). Also a **Hierarchical Navigable Small World** (HNSW) index is created on the embedding to make the search quicker. A seniority filter is added to the query during matching to reduce the search space before similarity ranking.
