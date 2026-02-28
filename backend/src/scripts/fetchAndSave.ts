@@ -2,7 +2,6 @@ import { ApifyClient } from "apify-client";
 import fs from "node:fs/promises";
 import path from "node:path";
 import dotenv, { config } from "dotenv";
-import { JOB_CATEGORIES } from "./jobCategories";
 
 dotenv.config();
 
@@ -30,7 +29,7 @@ async function fetchAndBackup() {
       const { items } = await apify.dataset(run.defaultDatasetId).listItems();
 
       // Create a filename like "software_engineer.json"
-    //   const fileName = `${config.query.replace(/\s+/g, "_").toLowerCase()}.json`;
+    
       const fileName = `jobDump.json`;
       const filePath = path.join(backupDir, fileName);
 

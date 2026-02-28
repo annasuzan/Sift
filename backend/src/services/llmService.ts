@@ -68,7 +68,7 @@ function parseProfileFromLLMOutput(rawOutput: string): ResumeDetails {
   const validTiers: SeniorityTier[] = ["internship", "entry", "mid", "senior", "lead"];
   if (!validTiers.includes(parsed.tier)) parsed.tier = "entry";
 
-  return { ...parsed };
+  return parsed;
 }
 
 function fallbackProfile(): ResumeDetails {

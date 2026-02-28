@@ -42,7 +42,6 @@ async function generateEmbedding(text: string): Promise<number[]> {
 async function ingestJobs() {
   console.log("Starting LinkedIn job ingestion from jobDump.json...");
   
-  // Pointing directly to your jobDump.json file
   const filePath = path.join(__dirname, "../../backups/jobDump.json");
 
   try {
@@ -59,7 +58,7 @@ async function ingestJobs() {
           continue;
         }
 
-        // 1. Check if job already exists in the new linkedin_jobs table
+        // Check if job already exists in the linkedin_jobs table
         const existing = await pool.query(
           "SELECT 1 FROM linkedin_jobs WHERE id = $1 LIMIT 1",
           [jobId]
@@ -70,7 +69,7 @@ async function ingestJobs() {
           continue; 
         }
 
-        // 2. Map JSON keys to variables
+        // Map JSON keys to variables
         const title = job.title || "Unknown Title";
         const companyName = job.companyName || "Unknown Company";
         const description = job.descriptionText || "";
@@ -81,8 +80,8 @@ async function ingestJobs() {
 
         console.log(`Processing: ${title} at ${companyName}`);
 
-        // 3. Create searchable text for the embedding
-        // We include title, company, and location for better semantic match
+        // Create searchable text for the embedding
+        //  title, company, and location for better semantic match
         const textToEmbed = `Title: ${title}\nCompany: ${companyName}\nLocation: ${job.Location}\nDescription: ${description}\nSeniority Level: ${seniorityLevel}`;
         const embedding = await generateEmbedding(textToEmbed);
 
@@ -93,7 +92,7 @@ async function ingestJobs() {
 
         const country = job.companyAddress?.addressCountry || "";
 
-        // 4. Insert into linkedin_jobs table
+        // Insert into linkedin_jobs table
         await pool.query(
           `INSERT INTO linkedin_jobs (
             id, 
@@ -147,7 +146,7 @@ async function ingestJobs() {
     console.error("Critical error reading jobDump.json:", outerErr);
   }
 
-  console.log("🏁 Ingestion finished.");
+  console.log("Ingestion finished.");
   process.exit(0);
 }
 

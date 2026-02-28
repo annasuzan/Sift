@@ -227,4 +227,3 @@ const JobCard = ({ job, index }: JobCardProps) => {
 };
 
 export default JobCard;
-export type { Job };

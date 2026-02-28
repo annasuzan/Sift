@@ -31,10 +31,10 @@ app.use("/api/jobs", jobsRoutes);
 
 async function initializeDatabase() {
   try {
-    // 1. Enable pgvector extension
+    // Enable pgvector extension
     await pool.query(`CREATE EXTENSION IF NOT EXISTS vector;`);
     
-    // 2. Create Table - Optimized for LinkedIn Data
+    // Create Table
     // Note: 'embedding' is vector(768) to match BGE-Base-v1.5
     await pool.query(`
       CREATE TABLE IF NOT EXISTS linkedin_jobs (
@@ -58,7 +58,7 @@ async function initializeDatabase() {
       );
     `);
 
-    // 3. Create HNSW Index for high-performance semantic search
+    // Create HNSW Index for high-performance semantic search
     await pool.query(`
       CREATE INDEX IF NOT EXISTS linkedin_jobs_embedding_hnsw_idx
       ON linkedin_jobs

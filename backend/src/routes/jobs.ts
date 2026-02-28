@@ -16,14 +16,14 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
-// ── POST /api/jobs/match ──
+// ── POST /api/jobs/match: Returns jobs that match the resume ──
 router.post("/match", upload.single("resume"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded. Please upload a PDF resume." });
     }
 
-    // 1. Parse PDF
+    // Parse PDF
     let resumeText: string;
     try {
       resumeText = await extractTextFromPdf(req.file.buffer);
@@ -32,12 +32,12 @@ router.post("/match", upload.single("resume"), async (req, res) => {
       return res.status(500).json({ error: "Failed to parse PDF content." });
     }
 
-    // 2. Extract profile via LLM
+    // Extract profile via LLM
     console.log("Extracting resume profile...");
     const profile = await extractResumeDetails(resumeText);
     console.log("Resume profile:", profile);
 
-    // 3. Generate embedding from augmented text
+    // Generate embedding from augmented text
     const augmentedText = `
       ${profile.summary}
       Job titles: ${profile.jobTitles.join(", ")}
@@ -48,7 +48,7 @@ router.post("/match", upload.single("resume"), async (req, res) => {
     const embedding = await generateEmbedding(augmentedText);
     const vectorString = JSON.stringify(embedding);
 
-    // 4. Query DB with seniority filter
+    // Query DB with seniority filter embedding cosine similarity
     const allowedLevels = SENIORITY_FILTER[profile.tier];
     const result = await pool.query(
       `SELECT
@@ -63,7 +63,7 @@ router.post("/match", upload.single("resume"), async (req, res) => {
       [vectorString, allowedLevels]
     );
 
-    // 5. Rerank with seniority boost and similarity filter
+    // Rerank with seniority boost and similarity filter
     const coreLevels = allowedLevels.slice(1, -1).length > 0
       ? allowedLevels.slice(1, -1)
       : allowedLevels;
@@ -98,7 +98,7 @@ router.post("/match", upload.single("resume"), async (req, res) => {
   }
 });
 
-// ── GET /api/jobs/all ──
+// ── GET /api/jobs/all : Returns all jobs in the DB ──
 router.get("/all", async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
