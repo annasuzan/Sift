@@ -26,7 +26,7 @@ Frontend developed using **React** and **Typescript** and deployed using **Verce
 
 Built using **Express.js** and **Typescript** and deployed on **Render**. It handles file uploads using Multer, extracts text from PDFs using pdf-parse, and makes calls to the database, LLM service, and embedding service.
 
-Render spins down a Free Web Service if no requests are made to it over a 15-minute window. This can result in a cold start when new requests are sent. When scaling up, it is worth considering paid Render options to keep services up and running.
+***Note:*** Render spins down a Free Web Service if no requests are made to it over a 15-minute window. This can result in a cold start when new requests are sent. When scaling up, we will have to move to a paid Render options to keep services up and running.
 
 ## LLM Service
 
