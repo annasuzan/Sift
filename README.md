@@ -1,6 +1,5 @@
 # Sift
-An application to help applicants identify roles that match their resume. 
-
+Sift allows applicants to do away with the endless list of job postings and find positions that actually match their resume. 
 <img width="1505" height="847" alt="Screenshot 2026-02-28 at 10 57 18 AM" src="https://github.com/user-attachments/assets/e5a7830d-5422-44ed-af80-da1cad9ec044" />
 
 <p align="center">
