@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import dotenv from "dotenv";
 import { pool } from "../db";
-import { SENIORITY_FILTER } from "../types/jobs";
+import { ResumeDetails, SENIORITY_FILTER } from "../types/jobs";
 import { extractTextFromPdf } from "../utils/resumeParser";
 import { extractResumeDetails } from "../services/llmService";
 import { generateEmbedding } from "../services/embeddingService";
@@ -34,7 +34,14 @@ router.post("/match", upload.single("resume"), async (req, res) => {
 
     // Extract profile via LLM
     console.log("Extracting resume profile...");
-    const profile = await extractResumeDetails(resumeText);
+    let profile : ResumeDetails;
+    try{
+        profile = await extractResumeDetails(resumeText);
+    } catch (err) {
+        console.error("Resume extraction error:", err);
+        return res.status(500).json({ error: "Failed to extract details from resume." });
+    }
+    
     console.log("Resume profile:", profile);
 
     // Generate embedding from augmented text

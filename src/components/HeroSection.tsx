@@ -7,9 +7,10 @@ interface HeroSectionProps {
   isProcessing: boolean;
   error: string | null;
   onBrowseAll: () => void;
+  onClearError: () => void; 
 }
 
-const HeroSection = ({ onUpload, isProcessing, error, onBrowseAll }: HeroSectionProps) => {
+const HeroSection = ({ onUpload, isProcessing, error, onBrowseAll, onClearError }: HeroSectionProps) => {
   return (
     <motion.div
       key="upload-hero"
@@ -43,7 +44,7 @@ const HeroSection = ({ onUpload, isProcessing, error, onBrowseAll }: HeroSection
           Upload your resume and let AI shortlist the best opportunities for you.
         </motion.p>
 
-        <ResumeUpload onUpload={onUpload} isProcessing={isProcessing} error={error} />
+        <ResumeUpload onUpload={onUpload} isProcessing={isProcessing} error={error} onClearError={onClearError} />
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}

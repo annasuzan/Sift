@@ -30,6 +30,8 @@ const Index = () => {
     handleUpload, handleUploadFromModal,
     handleBrowseAllTrigger, handleGoHome,
     resetFilters,
+    clearError,
+    clearModalError,
   } = useJobSearch();
 
   return (
@@ -53,6 +55,7 @@ const Index = () => {
         seniorityOptions={seniorityOptions}
         employmentOptions={employmentOptions}
         positionSearch={positionSearch}
+        setPositionSearch={setPositionSearch}
         resetFilters={resetFilters}
         onGoHome={handleGoHome}
       />
@@ -66,6 +69,7 @@ const Index = () => {
               isProcessing={isProcessing}
               error={error}
               onBrowseAll={handleBrowseAllTrigger}
+              onClearError={clearError}
             />
           ) : (
             <ResultsDashboard
@@ -90,6 +94,7 @@ const Index = () => {
         error={modalError}
         onUpload={handleUploadFromModal}
         onClose={() => setUploadModalOpen(false)}
+        onClearError={clearModalError} 
       />
 
       <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground mt-auto relative z-10">

@@ -7,9 +7,10 @@ interface ResumeUploadProps {
   onUpload: (file: File) => void;
   isProcessing: boolean;
   error?: string | null;
+  onClearError?: () => void;
 }
 
-const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
+const ResumeUpload = ({ onUpload, isProcessing, error, onClearError }: ResumeUploadProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -24,9 +25,12 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
 
   // Show backend error inside the component too
   useEffect(() => {
-    if (error) setLocalError(error);
+    if (error) {
+      setLocalError(error);
+    } else {
+      setLocalError(null);
+    }
   }, [error]);
-
   const isPdf = (f: File) =>
     f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
 
@@ -48,6 +52,7 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
       return;
     }
     setLocalError(null);
+    onClearError?.();
     setFile(droppedFile);
   }, []);
 
@@ -61,6 +66,7 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
       return;
     }
     setLocalError(null);
+    onClearError?.();
     setFile(selectedFile);
   }, []);
 
@@ -101,7 +107,7 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
         />
 
         <AnimatePresence mode="wait">
-          {file ? (
+         {file ? (
             <motion.div
               key="file"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -109,14 +115,18 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="flex flex-col items-center gap-4"
             >
-              <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center">
-                <FileText className="w-7 h-7 text-accent-foreground" />
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${error ? "bg-destructive/10" : "bg-accent"}`}>
+                {error
+                  ? <AlertCircle className="w-7 h-7 text-destructive" />
+                  : <FileText className="w-7 h-7 text-accent-foreground" />
+                }
               </div>
               <div>
                 <p className="font-medium text-foreground">{file.name}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {(file.size / 1024).toFixed(1)} KB
-                </p>
+                {error
+                  ? <p className="text-sm text-destructive mt-1">{error}</p>
+                  : <p className="text-sm text-muted-foreground mt-1">{(file.size / 1024).toFixed(1)} KB</p>
+                }
               </div>
               <div className="flex gap-3">
                 <Button
@@ -135,11 +145,11 @@ const ResumeUpload = ({ onUpload, isProcessing, error }: ResumeUploadProps) => {
                   className="gap-2"
                 >
                   <Sparkles className="w-4 h-4" />
-                  {isProcessing ? "Analyzing..." : "Find Jobs"}
+                  {isProcessing ? "Analyzing..." : error ? "Try Again" : "Find Jobs"}
                 </Button>
               </div>
             </motion.div>
-          ) : (
+            ) : (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}

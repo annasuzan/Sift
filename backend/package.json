@@ -16,6 +16,7 @@
   "type": "commonjs",
   "dependencies": {
     "@cyber2024/pdf-parse-fixed": "^1.2.5",
+    "@google/generative-ai": "^0.24.1",
     "axios": "^1.13.5",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",

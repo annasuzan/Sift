@@ -1,3 +1,4 @@
+import { Dispatch, SetStateAction } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, FileSearch, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,8 @@ interface ResultsDashboardProps {
   filteredJobs: Job[];
   isBrowsingAll: boolean;
   isProcessing: boolean;
+  positionSearch: string;                             
+  setPositionSearch: Dispatch<SetStateAction<string>>;
   lastJobElementRef: (node: HTMLDivElement) => void;
   onBrowseAll: () => void;
   onOpenUploadModal: () => void;

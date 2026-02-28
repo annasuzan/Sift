@@ -8,9 +8,10 @@ interface UploadModalProps {
   error: string | null;
   onUpload: (file: File) => void;
   onClose: () => void;
+  onClearError: () => void;
 }
 
-const UploadModal = ({ open, isProcessing, error, onUpload, onClose }: UploadModalProps) => {
+const UploadModal = ({ open, isProcessing, error, onUpload, onClose, onClearError }: UploadModalProps) => {
   return (
     <AnimatePresence>
       {open && (
@@ -47,7 +48,7 @@ const UploadModal = ({ open, isProcessing, error, onUpload, onClose }: UploadMod
                   We'll find the best matching jobs for your skills.
                 </p>
               </div>
-              <ResumeUpload onUpload={onUpload} isProcessing={isProcessing} error={error} />
+              <ResumeUpload onUpload={onUpload} isProcessing={isProcessing} error={error} onClearError={onClearError}/>
             </div>
           </motion.div>
         </>

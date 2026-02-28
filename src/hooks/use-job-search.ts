@@ -52,6 +52,8 @@ export function useJobSearch() {
     new Set(allJobs.map((j) => j.employment_type).filter(Boolean))
   ).sort();
 
+  const clearError = () => setError(null);
+  const clearModalError = () => setModalError(null);
 
   
   // ── Infinite scroll ref ──
@@ -252,5 +254,7 @@ export function useJobSearch() {
     handleUpload, handleUploadFromModal,
     handleBrowseAllTrigger, handleGoHome,
     resetFilters,
+    clearError,
+    clearModalError,
   };
 }
