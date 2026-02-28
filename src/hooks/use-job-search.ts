@@ -53,7 +53,7 @@ export function useJobSearch() {
   ).sort();
 
 
-
+  
   // ── Infinite scroll ref ──
   const lastJobElementRef = useCallback((node: HTMLDivElement) => {
     if (isProcessing) return;
@@ -88,8 +88,8 @@ export function useJobSearch() {
   // ── Client-side filtering ──
   useEffect(() => {
     let result = isBrowsingAll
-    ? [...allJobs]
-    : allJobs.filter((job) => job.similarity > 0);
+      ? [...allJobs]
+      : allJobs.filter((job) => job.similarity > 0);
 
     if (positionSearch.trim()) {
       result = result.filter(
@@ -171,14 +171,14 @@ export function useJobSearch() {
 
   // ── Upload (hero page) ──
   const handleUpload = async (file: File) => {
+    setAllJobs([]);
+    setFilteredJobs([]);
     setIsProcessing(true);
     setHasSearched(false);
     setIsBrowsingAll(false);
     setPage(1);
     setHasMore(false);
     setError(null);
-    setAllJobs([]);
-    setFilteredJobs([]);
     const formData = new FormData();
     formData.append("resume", file);
     try {
@@ -188,7 +188,7 @@ export function useJobSearch() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(mapBackendError(data?.error ?? ""));
-      const matches = (data.matches ?? data).filter((j: Job) => j.similarity >= 60);
+      const matches = (data.matches ?? []).filter((j: Job) => j.id && j.title && j.similarity >= 60);
       setAllJobs(matches);
       setFilteredJobs(matches);
       setHasSearched(true);
@@ -204,6 +204,8 @@ export function useJobSearch() {
 
   // ── Upload (modal) ──
   const handleUploadFromModal = async (file: File) => {
+    setAllJobs([]);
+    setFilteredJobs([]);
     setModalProcessing(true);
     setModalError(null);
     const formData = new FormData();
@@ -215,7 +217,7 @@ export function useJobSearch() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(mapBackendError(data?.error ?? ""));
-      const matches = (data.matches ?? data).filter((j: Job) => j.similarity >= 60);
+      const matches = (data.matches ?? []).filter((j: Job) => j.id && j.title && j.similarity >= 60);
       setAllJobs(matches);
       setFilteredJobs(matches);
       setIsBrowsingAll(false);
