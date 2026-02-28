@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { FileSearch, SlidersHorizontal, X, RotateCcw } from "lucide-react";
+import { FileSearch, SlidersHorizontal, X, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Filters } from "@/hooks/use-job-search";
 
@@ -11,7 +11,9 @@ interface NavbarProps {
   filters: Filters;
   setFilters: (f: Filters) => void;
   seniorityOptions: string[];
+  employmentOptions: string[];
   positionSearch: string;
+  setPositionSearch: (v: string) => void;
   resetFilters: () => void;
   onGoHome: () => void;
 }
@@ -19,7 +21,7 @@ interface NavbarProps {
 const Navbar = ({
   hasSearched, filtersOpen, setFiltersOpen,
   activeFilterCount, filters, setFilters,
-  seniorityOptions, positionSearch,
+  seniorityOptions, employmentOptions, positionSearch, setPositionSearch,
   resetFilters, onGoHome,
 }: NavbarProps) => {
   return (
@@ -73,6 +75,29 @@ const Navbar = ({
             <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-5">
               <div className="flex flex-wrap gap-4 items-end">
 
+                {/* Position search */}
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground mb-2 block">Search</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Job title or company…"
+                      className="w-full h-10 pl-9 pr-8 rounded-xl border border-border bg-secondary/40 text-sm outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-all placeholder:text-muted-foreground/50"
+                      value={positionSearch}
+                      onChange={(e) => setPositionSearch(e.target.value)}
+                    />
+                    {positionSearch && (
+                      <button
+                        onClick={() => setPositionSearch("")}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Location */}
                 <div className="flex-1 min-w-[160px]">
                   <label className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground mb-2 block">Location</label>
@@ -108,11 +133,10 @@ const Navbar = ({
                     value={filters.employmentType}
                     onChange={(e) => setFilters({ ...filters, employmentType: e.target.value })}
                   >
-                    <option value="">Any Type</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Part-time">Part-time</option>
-                    <option value="Contract">Contract</option>
-                    <option value="Internship">Internship</option>
+                    <option value="">All Types</option>
+                    {employmentOptions.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
                   </select>
                 </div>
 

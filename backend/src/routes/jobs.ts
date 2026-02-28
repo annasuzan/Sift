@@ -73,7 +73,7 @@ router.post("/match", upload.single("resume"), async (req, res) => {
         const boost = coreLevels.includes(row.seniority_level) ? 0.05 : 0;
         return {
           ...row,
-          similarity: parseFloat(((row.similarity + boost) * 100).toFixed(2)),
+          similarity: Math.round((row.similarity + boost) * 100),
           _candidateTier: profile.tier,
           _candidateYears: profile.yearsOfExperience,
         };

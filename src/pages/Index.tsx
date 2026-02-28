@@ -25,7 +25,7 @@ const Index = () => {
     isBrowsingAll, isProcessing: isFetchingMore,
     uploadModalOpen, setUploadModalOpen,
     modalError, setModalError, modalProcessing,
-    activeFilterCount, seniorityOptions,
+    activeFilterCount, seniorityOptions, employmentOptions,
     lastJobElementRef,
     handleUpload, handleUploadFromModal,
     handleBrowseAllTrigger, handleGoHome,
@@ -51,6 +51,7 @@ const Index = () => {
         filters={filters}
         setFilters={setFilters}
         seniorityOptions={seniorityOptions}
+        employmentOptions={employmentOptions}
         positionSearch={positionSearch}
         resetFilters={resetFilters}
         onGoHome={handleGoHome}

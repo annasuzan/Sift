@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Sparkles, FileSearch, Upload, Search, X } from "lucide-react";
+import { Sparkles, FileSearch, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import JobCard, { Job } from "@/components/JobCard";
 
@@ -7,8 +7,6 @@ interface ResultsDashboardProps {
   filteredJobs: Job[];
   isBrowsingAll: boolean;
   isProcessing: boolean;
-  positionSearch: string;
-  setPositionSearch: (v: string) => void;
   lastJobElementRef: (node: HTMLDivElement) => void;
   onBrowseAll: () => void;
   onOpenUploadModal: () => void;
@@ -17,7 +15,6 @@ interface ResultsDashboardProps {
 
 const ResultsDashboard = ({
   filteredJobs, isBrowsingAll, isProcessing,
-  positionSearch, setPositionSearch,
   lastJobElementRef,
   onBrowseAll, onOpenUploadModal, onResetFilters,
 }: ResultsDashboardProps) => {
@@ -61,26 +58,6 @@ const ResultsDashboard = ({
             Upload new resume
           </Button>
         </div>
-      </div>
-
-      {/* Position search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-        <input
-          type="text"
-          placeholder="Search by job title or company…"
-          value={positionSearch}
-          onChange={(e) => setPositionSearch(e.target.value)}
-          className="w-full h-11 pl-11 pr-4 rounded-xl border border-border bg-card/60 backdrop-blur-sm text-sm outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-all placeholder:text-muted-foreground/50"
-        />
-        {positionSearch && (
-          <button
-            onClick={() => setPositionSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
       </div>
 
       {/* Job grid */}

@@ -48,6 +48,12 @@ export function useJobSearch() {
     new Set(allJobs.map((j) => j.seniority_level).filter(Boolean))
   ).sort();
 
+  const employmentOptions = Array.from(
+    new Set(allJobs.map((j) => j.employment_type).filter(Boolean))
+  ).sort();
+
+
+
   // ── Infinite scroll ref ──
   const lastJobElementRef = useCallback((node: HTMLDivElement) => {
     if (isProcessing) return;
@@ -81,7 +87,9 @@ export function useJobSearch() {
 
   // ── Client-side filtering ──
   useEffect(() => {
-    let result = [...allJobs];
+    let result = isBrowsingAll
+    ? [...allJobs]
+    : allJobs.filter((job) => job.similarity > 0);
 
     if (positionSearch.trim()) {
       result = result.filter(
@@ -235,7 +243,7 @@ export function useJobSearch() {
     modalError, setModalError,
     modalProcessing,
     // Derived
-    activeFilterCount, seniorityOptions,
+    activeFilterCount, seniorityOptions, employmentOptions,
     // Refs
     lastJobElementRef,
     // Actions
